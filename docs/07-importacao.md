@@ -8,7 +8,7 @@ Migration: `supabase/migrations/20261016200000_importacao.sql`. O cartão de cr�
 |---|---|
 | **B1** | Contas bancárias, importação **OFX**, pré-visualização, sem duplicar, transferências, saldo consolidado no Dashboard |
 | **B2** | Planilha: modelo do app (xlsx/csv) + planilha qualquer com mapeamento de colunas. É o motor que os CSV dos bancos reutilizam |
-| **B3…** | CSV de um banco por vez, só dos bancos que você usa (lista a confirmar). Os demais ficam cobertos pelo OFX |
+| **B3…** | CSV de um banco por vez: **Nubank** (conta e cartão), **Inter** e **PicPay**. Os demais bancos ficam pelo OFX; um CSV novo só quando for pedido |
 
 Cada etapa fecha com build + testes + navegador em 375 px. Para testar com extrato real, eu peço o arquivo exportado do banco.
 
@@ -63,7 +63,7 @@ Cada etapa fecha com build + testes + navegador em 375 px. Para testar com extra
 
 ## Saldo consolidado
 
-- Saldo da conta = saldo inicial + entradas recebidas − contas fixas pagas − gastos pagos − investimentos + transferências recebidas − enviadas. É calculado no banco (`saldos_contas()`) e no front, e os dois têm de bater, como já acontece com o Disponível.
+- Saldo da conta = saldo inicial + entradas recebidas − contas fixas pagas − gastos pagos − investimentos + transferências recebidas − enviadas. É calculado no banco (`saldos_contas()`).
 - **Dashboard**: card "Saldo em contas" com o total das contas ativas, o detalhe por banco e o filtro "Todas as contas / <conta>". O filtro vale para esse card.
 
 ## Proteção dos extratos

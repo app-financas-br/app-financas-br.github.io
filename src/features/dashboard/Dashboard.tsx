@@ -349,7 +349,7 @@ export function Dashboard() {
           {ultimos.length === 0 ? (
             <CardVazio>{t.painel.semLancamentos}</CardVazio>
           ) : (
-            <ul className="grid gap-x-6 md:grid-cols-2 lg:grid-cols-1">
+            <ul className="grid grid-cols-1 gap-x-6 md:grid-cols-2 lg:grid-cols-1">
               {ultimos.map((u) => {
                 const entra = u.tipo === "entrada" || (u.tipo === "investimento" && u.centavos < 0);
                 return (
