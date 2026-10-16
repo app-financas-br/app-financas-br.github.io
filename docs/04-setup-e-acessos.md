@@ -6,7 +6,7 @@ Você não precisa me passar nenhuma senha. O Claude Code roda no seu computador
 
 | # | Serviço | O que fazer | O que você guarda |
 | --- | --- | --- | --- |
-| 1 | GitHub | Criar conta (se não tiver) e um repositório novo, ex. `financas-app` | Nome do repositório |
+| 1 | GitHub | Criar conta (se não tiver), a organização `app-financas-br` e nela o repositório `app-financas-br.github.io` | Nome do repositório |
 | 2 | Supabase | Criar projeto. Região: South America (São Paulo). Anote a senha do banco num gerenciador de senhas | Project URL, Project ref, chave publishable (ou anon) |
 | 3 | Groq | Criar conta em console.groq.com e gerar uma API key | A chave (segredo) |
 | 4 | Seu computador | Instalar Node.js LTS, Git, GitHub CLI (`gh`), Supabase CLI e Claude Code | — |
@@ -32,8 +32,8 @@ gh auth login
 supabase login
 
 # 2. Clonar o repositório vazio e copiar este kit para dentro
-gh repo clone <seu-usuario>/financas-app
-cd financas-app
+gh repo clone app-financas-br/app-financas-br.github.io
+cd app-financas-br.github.io
 # (copie todo o conteúdo deste kit para cá)
 
 # 3. Ligar a pasta ao seu projeto Supabase
@@ -58,7 +58,7 @@ Depois disso, abra o Claude Code na pasta e cole o conteúdo de `PROMPT-INICIAL.
 
 - **Uso só seu**: depois de criar a sua conta no app, desligue novos cadastros em **Authentication → Sign In / Providers → Allow new users to sign up**. Assim ninguém mais consegue criar conta no seu app.
 
-- **Authentication → URL Configuration**: Site URL = `https://<seu-usuario>.github.io/financas-app/`; em Redirect URLs, adicione esse endereço e `http://localhost:5173`.
+- **Authentication → URL Configuration**: Site URL = `https://app-financas-br.github.io/`; em Redirect URLs, adicione `https://app-financas-br.github.io/**` e `http://localhost:5173/**`.
 - **Authentication → Providers → Email**: deixe ativo. Para testes, pode desligar "Confirm email"; religue antes de outras pessoas usarem.
 - **Authentication → Emails**: o envio padrão do Supabase tem limite baixo por hora. Para uso real, configure um SMTP próprio (Resend, Brevo, etc.).
 - **Edge Functions → voz → Secrets**: confira se `GROQ_API_KEY` aparece.
@@ -68,7 +68,7 @@ Depois disso, abra o Claude Code na pasta e cole o conteúdo de `PROMPT-INICIAL.
 1. No repositório: **Settings → Pages → Source: GitHub Actions**.
 2. **Settings → Secrets and variables → Actions**: criar `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`.
 3. O workflow `.github/workflows/deploy.yml` publica a cada push na `main`.
-4. Endereço final: `https://<seu-usuario>.github.io/financas-app/`. Se mudar o nome do repositório, ajuste `base` no `vite.config.ts`.
+4. Endereço final: `https://app-financas-br.github.io/` (repositório `app-financas-br.github.io` = site na raiz, `base: '/'`). Se publicar em outro repositório, o site vai para uma subpasta: ajuste `base` no `vite.config.ts` e as URLs do Supabase.
 
 ## Custos esperados (uso pessoal)
 

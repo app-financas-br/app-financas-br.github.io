@@ -83,7 +83,7 @@ export const t = {
     senhaFraca: "Senha fraca. Use pelo menos 8 caracteres.",
     mesmaSenha: "A nova senha precisa ser diferente da atual.",
     semConexao: "Sem conexão. Verifique a internet.",
-    generico: "Algo deu errado. Tente de novo.",
+    generico: (codigo: string) => `Algo deu errado (código: ${codigo}). Tente de novo.`,
   },
 
   dashboard: {

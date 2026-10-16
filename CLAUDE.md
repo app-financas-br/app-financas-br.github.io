@@ -52,7 +52,7 @@ src/
 
 ```bash
 npm run dev          # http://localhost:5173
-npm run build        # gera dist/ (base '/financas-app/')
+npm run build        # gera dist/ (base '/', site em https://app-financas-br.github.io/)
 npm run test         # vitest
 supabase db push     # aplica migrations no projeto linkado
 supabase functions deploy voz --no-verify-jwt   # a função valida o login no código

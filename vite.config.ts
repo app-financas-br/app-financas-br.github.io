@@ -2,9 +2,9 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-// base = nome do repositório no GitHub Pages (https://<usuario>.github.io/financas-app/)
+// base "/": site de organização no GitHub Pages, na raiz (https://app-financas-br.github.io/)
 export default defineConfig({
-  base: "/financas-app/",
+  base: "/",
   plugins: [react(), tailwindcss()],
   server: { port: 5173, strictPort: true },
   test: {

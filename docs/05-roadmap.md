@@ -3,7 +3,7 @@
 ## Fase 0 — Fundação
 
 - Projeto Vite + React + TS, Tailwind ligado aos tokens, HashRouter, cliente Supabase, react-query.
-- `vite.config.ts` com `base: '/financas-app/'`.
+- `vite.config.ts` com `base: '/'` (site na raiz: https://app-financas-br.github.io/).
 - Layout: Sidebar (desktop), BottomNav (celular), Topbar com seletor de mês/ano.
 - Login, cadastro, esqueci a senha (`resetPasswordForEmail` + tela de nova senha no evento `PASSWORD_RECOVERY`), sair.
 - Deploy funcionando no GitHub Pages.

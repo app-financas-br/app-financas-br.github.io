@@ -7,7 +7,7 @@ Este kit tem tudo o que o Claude Code precisa para construir o app: especificaç
 - [ ] Conta no GitHub, no Supabase (região São Paulo) e na Groq (plano gratuito)
 - [ ] Chave da Groq gerada (guarde num lugar seguro; ela só vai para o Supabase)
 - [ ] Node.js LTS, Git, GitHub CLI (`gh`), Supabase CLI e Claude Code instalados
-- [ ] Repositório `financas-app` criado e este kit copiado para dentro
+- [ ] Repositório `app-financas-br/app-financas-br.github.io` criado e este kit copiado para dentro
 - [ ] Comandos de `docs/04-setup-e-acessos.md` rodados
 - [ ] `PROMPT-INICIAL.md` colado no Claude Code
 - [ ] Depois de criar sua conta no app: desligar novos cadastros no Supabase
@@ -44,7 +44,7 @@ Você não precisa passar nenhuma senha ou chave para ninguém: os logins ficam 
 
 ## Decisões já tomadas (pode mudar)
 
-- Nome do repositório: `financas-app` (se mudar, ajuste `base` no Vite e as URLs do Supabase).
+- Repositório: `app-financas-br/app-financas-br.github.io`, publicado na raiz em https://app-financas-br.github.io/ (se mudar, ajuste `base` no Vite e as URLs do Supabase).
 - Front-end estático no GitHub Pages; banco, login e voz no Supabase; IA da voz na Groq.
 - Ficaram de fora: painel de leads, questionário comercial e venda por Pix do app original.
 - A imagem do Pinterest serve só de inspiração de estilo; o app usa nome, logo e ícones próprios.
