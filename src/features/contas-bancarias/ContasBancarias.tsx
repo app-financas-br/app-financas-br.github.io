@@ -13,6 +13,9 @@ import { TIPOS_CONTA, useAtualizarConta, useContasBancarias, useCriarConta, useE
 import { t } from "../../i18n/pt-BR";
 
 const botaoIcone = "flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-faint hover:bg-card-hover";
+const seletor =
+  "h-9 w-full min-w-0 cursor-pointer rounded-md border border-border bg-input px-2 text-text outline-none focus:border-border-glow [&>option]:bg-elevated";
+const DIAS = Array.from({ length: 31 }, (_, i) => i + 1);
 
 /** Configurações → Contas bancárias: criar, renomear, banco, tipo, saldo inicial, cor, desativar e excluir. */
 export function ContasBancarias() {
@@ -79,7 +82,11 @@ export function ContasBancarias() {
                 <select
                   aria-label={t.contas.tipo(c.nome)}
                   value={c.tipo}
-                  onChange={(e) => salvar(c.id, { tipo: e.target.value as TipoConta })}
+                  onChange={(e) => {
+                    const tipo = e.target.value as TipoConta;
+                    // Fechamento/vencimento/conta que paga só existem em cartão (o banco recusa nos outros tipos)
+                    salvar(c.id, tipo === "cartao_credito" ? { tipo } : { tipo, dia_fechamento: null, dia_vencimento: null, conta_pagamento_id: null });
+                  }}
                   className="h-9 w-full min-w-0 cursor-pointer truncate rounded-md bg-transparent px-2 text-[length:var(--fs-sm)] text-muted outline-none hover:bg-card-hover [&>option]:bg-elevated"
                 >
                   {TIPOS_CONTA.map((tp) => (
@@ -96,6 +103,42 @@ export function ContasBancarias() {
                   <Trash2 size={16} />
                 </button>
               </div>
+              {c.tipo === "cartao_credito" && (
+                <div className="col-span-3 flex flex-col gap-2 rounded-md bg-card-hover/40 p-2 text-[length:var(--fs-sm)] text-muted md:col-span-6 md:ml-10">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-[7rem_7rem_minmax(0,1fr)]">
+                    <label className="flex flex-col gap-1">
+                      {t.contas.fechamento}
+                      <select aria-label={t.contas.fechamentoDe(c.nome)} className={seletor} value={c.dia_fechamento ?? ""}
+                        onChange={(e) => salvar(c.id, { dia_fechamento: e.target.value ? Number(e.target.value) : null })}>
+                        <option value="">—</option>
+                        {DIAS.map((d) => <option key={d} value={d}>{t.contas.dia(d)}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      {t.contas.vencimento}
+                      <select aria-label={t.contas.vencimentoDe(c.nome)} className={seletor} value={c.dia_vencimento ?? ""}
+                        onChange={(e) => salvar(c.id, { dia_vencimento: e.target.value ? Number(e.target.value) : null })}>
+                        <option value="">—</option>
+                        {DIAS.map((d) => <option key={d} value={d}>{t.contas.dia(d)}</option>)}
+                      </select>
+                    </label>
+                    <label className="col-span-2 flex flex-col gap-1 sm:col-span-1">
+                      {t.contas.pagaCom}
+                      <select aria-label={t.contas.pagaComDe(c.nome)} className={seletor} value={c.conta_pagamento_id ?? ""}
+                        onChange={(e) => salvar(c.id, { conta_pagamento_id: e.target.value || null })}>
+                        <option value="">—</option>
+                        {ativas.filter((o) => o.id !== c.id && o.tipo !== "cartao_credito").map((o) => <option key={o.id} value={o.id}>{o.nome}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" className="h-4 w-4 accent-[var(--primary)]" checked={c.compra_no_fechamento_proxima}
+                      onChange={(e) => salvar(c.id, { compra_no_fechamento_proxima: e.target.checked })} />
+                    {t.contas.noFechamentoProxima}
+                  </label>
+                  {(!c.dia_fechamento || !c.dia_vencimento) && <span className="text-warning">{t.contas.semRegra}</span>}
+                </div>
+              )}
             </li>
           ))}
         </ul>

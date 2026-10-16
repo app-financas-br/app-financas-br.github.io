@@ -102,3 +102,20 @@ describe("montarItens", () => {
     expect(montarItens([l], "nu", "debito")).toEqual([]);
   });
 });
+
+describe("montarItens no cartão de crédito", () => {
+  const nov = { periodo: () => ({ ano: 2026, mes: 11 }) };
+  it("compra vira gasto positivo no mês da fatura, com a parcela do arquivo", () => {
+    const [item] = montarItens([linha({ data: "2026-10-16", descricao: "Loja - Parcela 2/6", centavos: -9999 })], "cartao", "credito", nov);
+    expect(item).toMatchObject({ tipo: "gasto", valor: 99.99, forma_pagamento: "credito", ano: 2026, mes: 11, parcela_num: 2, parcela_total: 6, data: "2026-10-16" });
+  });
+  it("estorno (crédito no cartão) vira gasto NEGATIVO no mês da fatura", () => {
+    const [item] = montarItens([linha({ descricao: "Estorno Loja", centavos: 1500, categoriaId: "lazer" })], "cartao", "credito", nov);
+    expect(item).toMatchObject({ tipo: "gasto", valor: -15, categoria_id: "lazer", ano: 2026, mes: 11, parcela_num: null });
+  });
+  it("pagamento da fatura continua transferência (sem mês de fatura)", () => {
+    const [item] = montarItens([linha({ tipo: "transferencia", outraContaId: "corrente", centavos: 152035 })], "cartao", "credito", nov);
+    expect(item).toMatchObject({ tipo: "transferencia", conta_origem_id: "corrente", conta_destino_id: "cartao", valor: 1520.35 });
+    expect(item).not.toHaveProperty("ano");
+  });
+});

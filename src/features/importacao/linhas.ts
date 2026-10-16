@@ -1,6 +1,8 @@
 // Linhas da pré-visualização → itens da RPC importar_lancamentos (puro, testado).
 
 import { deCentavos } from "../../lib/dinheiro";
+import type { Periodo } from "../../lib/datas";
+import { parcelaDaDescricao } from "../../lib/fatura";
 import { valorParaTipo, type ContaFixaAberta, type SugestaoTransferencia, type TipoImportacao } from "../../lib/importacao";
 
 export type TipoLinha = TipoImportacao | "transferencia";
@@ -40,7 +42,10 @@ export function acaoDaLinha(l: LinhaRevisao): "importar" | "so_chave" | null {
  * (a chave fica sempre na conta do extrato). Sugestão confirmada contra lançamento já
  * gravado converte esse lançamento (mesmo id), guardando o tipo que a linha teria.
  */
-export function montarItens(linhas: LinhaRevisao[], contaId: string, formaPagamento: "debito" | "credito"): ItemRpc[] {
+/** Importação em cartão de crédito: mês da fatura de cada linha (docs/08-cartao.md). */
+export type OpcoesCartao = { periodo: (l: LinhaRevisao) => Periodo };
+
+export function montarItens(linhas: LinhaRevisao[], contaId: string, formaPagamento: "debito" | "credito", cartao?: OpcoesCartao): ItemRpc[] {
   const itens: ItemRpc[] = [];
   for (const l of linhas) {
     const acao = acaoDaLinha(l);
@@ -74,6 +79,21 @@ export function montarItens(linhas: LinhaRevisao[], contaId: string, formaPagame
         item.novo_categoria_id = sai ? l.categoriaId : null;
       }
       itens.push(item);
+    } else if (cartao && l.tipo === "gasto") {
+      // Cartão: compra (débito) = gasto positivo; estorno/crédito = gasto NEGATIVO, no mês da fatura
+      const p = cartao.periodo(l);
+      const parcela = parcelaDaDescricao(l.descricao);
+      itens.push({
+        ...base,
+        tipo: "gasto",
+        valor: deCentavos(-l.centavos),
+        categoria_id: l.categoriaId,
+        forma_pagamento: "credito",
+        ano: p.ano,
+        mes: p.mes,
+        parcela_num: parcela?.num ?? null,
+        parcela_total: parcela?.total ?? null,
+      });
     } else {
       itens.push({
         ...base,

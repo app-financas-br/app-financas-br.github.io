@@ -17,9 +17,15 @@ export type ContaBancaria = {
   ativa: boolean;
   ofx_banco: string | null;
   ofx_conta: string | null;
+  // Só cartão de crédito (docs/08-cartao.md)
+  dia_fechamento: number | null;
+  dia_vencimento: number | null;
+  conta_pagamento_id: string | null;
+  compra_no_fechamento_proxima: boolean;
 };
 
-const CAMPOS = "id, nome, banco, tipo, saldo_inicial, cor, ativa, ofx_banco, ofx_conta";
+const CAMPOS =
+  "id, nome, banco, tipo, saldo_inicial, cor, ativa, ofx_banco, ofx_conta, dia_fechamento, dia_vencimento, conta_pagamento_id, compra_no_fechamento_proxima";
 const K = ["contas_bancarias"] as const;
 export const K_SALDOS = ["saldos_contas"] as const;
 
@@ -64,7 +70,13 @@ export function useCriarConta() {
   });
 }
 
-type CamposEditaveis = Partial<Pick<ContaBancaria, "nome" | "banco" | "tipo" | "saldo_inicial" | "cor" | "ativa" | "ofx_banco" | "ofx_conta">>;
+type CamposEditaveis = Partial<
+  Pick<
+    ContaBancaria,
+    "nome" | "banco" | "tipo" | "saldo_inicial" | "cor" | "ativa" | "ofx_banco" | "ofx_conta"
+    | "dia_fechamento" | "dia_vencimento" | "conta_pagamento_id" | "compra_no_fechamento_proxima"
+  >
+>;
 
 /** Edição otimista; desfaz se o banco recusar. */
 export function useAtualizarConta() {
@@ -139,4 +151,29 @@ export function useExcluirContaComDesfazer() {
       5000,
     );
   };
+}
+
+/** Totais da fatura atual e da próxima de cada cartão (gastos do cartão no mês de cada fatura). */
+export function useFaturasCartoes(cartoes: { id: string; periodos: { ano: number; mes: number }[] }[]) {
+  const ids = cartoes.map((c) => c.id);
+  const periodos = [...new Map(cartoes.flatMap((c) => c.periodos).map((p) => [`${p.ano}-${p.mes}`, p])).values()];
+  return useQuery({
+    queryKey: ["gastos_variaveis", "faturas", ids, periodos],
+    enabled: ids.length > 0,
+    queryFn: async (): Promise<Map<string, number>> => {
+      const { data, error } = await supabase
+        .from("gastos_variaveis")
+        .select("valor, ano, mes, conta_bancaria_id")
+        .in("conta_bancaria_id", ids)
+        .or(periodos.map((p) => `and(ano.eq.${p.ano},mes.eq.${p.mes})`).join(","));
+      if (error) throw error;
+      // chave "conta|ano|mes" → centavos
+      const m = new Map<string, number>();
+      for (const g of data as { valor: number | string; ano: number; mes: number; conta_bancaria_id: string }[]) {
+        const k = `${g.conta_bancaria_id}|${g.ano}|${g.mes}`;
+        m.set(k, (m.get(k) ?? 0) + paraCentavos(g.valor));
+      }
+      return m;
+    },
+  });
 }

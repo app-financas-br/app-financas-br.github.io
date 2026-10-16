@@ -99,6 +99,8 @@ export const t = {
   },
 
   lanc: {
+    movidoFatura: (dia: string, cartao: string, mes: string) => `Compra ${dia} no ${cartao} → conta em ${mes}.`,
+    ver: "Ver",
     entradas: "Entradas",
     contasFixas: "Contas fixas",
     gastos: "Gastos variáveis",
@@ -189,6 +191,8 @@ export const t = {
     titulo: (descricao: string) => `Detalhes: ${descricao}`,
     cartao: "Banco ou cartão",
     cartaoExemplo: "Ex.: Nubank, Itaú Visa",
+    cartaoCredito: "Cartão de crédito",
+    outroCartao: "Outro (digitar o nome)",
     semCartao: (forma: string) => `Pagamento em ${forma}: não há cartão. Troque para Débito ou Crédito para informar o cartão.`,
     observacao: "Observação",
     salvar: "Salvar",
@@ -241,6 +245,17 @@ export const t = {
     semContas: "Cadastre suas contas para ver o saldo consolidado.",
     cadastrar: "Cadastrar contas",
     inativa: "desativada",
+    fechamento: "Fecha no dia",
+    fechamentoDe: (nome: string) => `Dia de fechamento de ${nome}`,
+    vencimento: "Vence no dia",
+    vencimentoDe: (nome: string) => `Dia de vencimento de ${nome}`,
+    dia: (d: number) => `Dia ${d}`,
+    pagaCom: "Fatura paga pela conta",
+    pagaComDe: (nome: string) => `Conta que paga a fatura de ${nome}`,
+    noFechamentoProxima: "Compra no dia do fechamento vai para a próxima fatura",
+    semRegra: "Informe o fechamento e o vencimento para o gasto contar no mês da fatura.",
+    faturaAtual: (venc: string) => `Fatura atual (vence ${venc})`,
+    proximaFatura: "Próxima fatura",
   },
 
   importacao: {
@@ -276,6 +291,11 @@ export const t = {
     continuar: "Continuar",
     criarNova: "Criar uma conta nova",
     nomeCartao: (banco: string) => `Cartão ${banco}`,
+    mesFatura: "Mês da fatura",
+    porCompra: "Cada compra pela data (regra do cartão)",
+    porMesCompra: "Cada compra no mês em que foi feita",
+    faturaDe: (mes: string) => `Este arquivo é a fatura de ${mes}`,
+    contaEm: (dia: string, estorno: boolean, mes: string) => `${estorno ? "Estorno" : "Compra"} ${dia} → conta em ${mes}`,
     ignoradasBanco: (linhas: number[]) =>
       `${linhas.length === 1 ? "1 linha ignorada" : `${linhas.length} linhas ignoradas`} sem data ou valor (${linhas.slice(0, 8).join(", ")}).`,
     lendo: "Lendo arquivo…",

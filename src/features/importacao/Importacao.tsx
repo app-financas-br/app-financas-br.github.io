@@ -11,7 +11,8 @@ import { lerCsvDeBanco } from "../../lib/bancos";
 import { aplicarMapeamento, CAMPOS, encontrarCabecalho, lerCsv, mapeamentoCompleto, sugerirMapeamento, type Campo, type Celula, type Mapeamento } from "../../lib/planilha";
 import { categorizar, normalizar } from "../../lib/categorizar";
 import { formatarMovimento, paraCentavos } from "../../lib/dinheiro";
-import { parseData } from "../../lib/datas";
+import { parseData, type Periodo } from "../../lib/datas";
+import { faturaDaCompra, regraDoCartao } from "../../lib/fatura";
 import { chavesDasLinhas, contaFixaParecida, detectarTransferencias, nomeDoBanco, sugerirTipo } from "../../lib/importacao";
 import { useCategorias, useRegrasCategoria } from "../categorias/useCategorias";
 import { usePreferencias } from "../preferencias/usePreferencias";
@@ -29,7 +30,16 @@ const campo = "h-9 w-full min-w-0 rounded-md border border-border bg-input px-2 
 const diaMes = (d: string) => parseData(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
 /** Extrato já lido (OFX ou planilha). Da planilha podem vir tipo e categoria. */
-type Extrato = Omit<ExtratoOfx, "transacoes"> & { transacoes: (TransacaoOfx & { tipo?: TipoLinha | null; categoria?: string | null })[] };
+type Extrato = Omit<ExtratoOfx, "transacoes"> & {
+  transacoes: (TransacaoOfx & { tipo?: TipoLinha | null; categoria?: string | null })[];
+  /** Arquivo de UMA fatura de cartão (CSV de fatura): todos os itens vão para o mesmo mês. */
+  faturaInteira?: boolean;
+};
+
+const COMPRA = "compra"; // modo de fatura: cada compra pela regra do cartão
+const chaveMes = (p: Periodo) => `${p.ano}-${String(p.mes).padStart(2, "0")}`;
+const mesDaData = (data: string): Periodo => ({ ano: Number(data.slice(0, 4)), mes: Number(data.slice(5, 7)) });
+const PAGAMENTO_FATURA = /pagamento (de |da )?fatura|fatura (do )?cartao/;
 
 type Etapa =
   | { nome: "arquivo"; erro?: string }
@@ -45,6 +55,7 @@ export function Importacao() {
   const [contaEscolhida, setContaEscolhida] = useState<string>(NOVA);
   const [nomeNova, setNomeNova] = useState("");
   const [bancoNovo, setBancoNovo] = useState("");
+  const [modoFatura, setModoFatura] = useState(COMPRA);
   const entradaArquivo = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
   const { mostrar } = useToast();
@@ -92,7 +103,7 @@ export function Importacao() {
         if (doBanco) {
           if (doBanco.transacoes.length === 0) return setEtapa({ nome: "arquivo", erro: t.importacao.planilhaVazia });
           if (doBanco.ignoradas.length > 0) mostrar({ tipo: "info", texto: t.importacao.ignoradasBanco(doBanco.ignoradas) });
-          return irParaConta({ tipoConta: doBanco.tipoConta, banco: null, conta: null, transacoes: doBanco.transacoes }, doBanco.banco);
+          return irParaConta({ tipoConta: doBanco.tipoConta, banco: null, conta: null, transacoes: doBanco.transacoes, faturaInteira: doBanco.tipoConta === "cartao" }, doBanco.banco);
         }
         const cabecalho = encontrarCabecalho(linhasPlanilha);
         return setEtapa({ nome: "mapeamento", linhas: linhasPlanilha, cabecalho, mapa: sugerirMapeamento(linhasPlanilha[cabecalho] ?? []) });
@@ -126,11 +137,28 @@ export function Importacao() {
         ctx.gravados,
         ctx.transferencias,
       );
+      const cartao = conta.tipo === "cartao_credito";
+      const regra = regraDoCartao(conta);
+      // Cartão que esta conta paga (ou o único cartão ativo): destino do "pagamento de fatura"
+      const cartoes = contas.filter((c) => c.ativa && c.tipo === "cartao_credito" && c.id !== conta.id);
+      const cartaoPago = cartoes.find((c) => c.conta_pagamento_id === conta.id) ?? (cartoes.length === 1 ? cartoes[0]! : null);
+      // Arquivo de uma fatura: todos os itens no mês da fatura da compra mais recente
+      const ultima = [...tr].map((x) => x.data).sort().pop()!;
+      setModoFatura(cartao && extrato.faturaInteira && regra ? chaveMes(faturaDaCompra(ultima, regra)) : COMPRA);
       setLinhas(
         tr.map((x, i) => {
           const sugestao = sugestoes.get(String(i)) ?? null;
           const repetida = ctx.chavesExistentes.has(chaves[i]!);
-          const tipo = x.tipo ?? sugerirTipo(x);
+          let tipo: TipoLinha = x.tipo ?? sugerirTipo(x);
+          let outraConta: string | null = sugestao && sugestao.tipo !== "ja_registrada" ? sugestao.outraContaId : null;
+          // No cartão, crédito que não é pagamento é estorno: gasto negativo (abate no mês da fatura)
+          if (cartao && tipo === "entrada") tipo = "gasto";
+          if (cartao && tipo === "transferencia" && !outraConta) outraConta = conta.conta_pagamento_id;
+          // Na conta corrente, "pagamento de fatura" é transferência para o cartão, não gasto
+          if (!cartao && !sugestao && x.centavos < 0 && cartaoPago && PAGAMENTO_FATURA.test(normalizar(x.descricao))) {
+            tipo = "transferencia";
+            outraConta = cartaoPago.id;
+          }
           // Categoria escrita na planilha: casa pelo nome (sem acento/maiúscula) entre as do tipo
           const daPlanilha = x.categoria
             ? (tipo === "investimento" ? catInvest : catGasto).find((c) => normalizar(c.nome) === normalizar(x.categoria!))?.id
@@ -145,7 +173,7 @@ export function Importacao() {
             incluir: !repetida && sugestao?.tipo !== "ja_registrada",
             tipo,
             categoriaId: daPlanilha ?? categoriaPara(tipo, x.descricao),
-            outraContaId: sugestao && sugestao.tipo !== "ja_registrada" ? sugestao.outraContaId : null,
+            outraContaId: outraConta,
             sugestao,
             transfConfirmada: false,
             contaFixa: contaFixaParecida(x, ctx.contasFixas, paraCentavos),
@@ -192,13 +220,24 @@ export function Importacao() {
     setLinhas((ls) => ls.map((l) => (l.id === id ? { ...l, ...campos } : l)));
 
   // 3) Confirmar → RPC única
+  /** Mês em que a linha conta: no cartão, o da fatura (arquivo de fatura → o escolhido; senão pela regra). */
+  const periodoDaLinha = (l: Pick<LinhaRevisao, "data">, conta: ContaBancaria): Periodo => {
+    if (conta.tipo !== "cartao_credito") return mesDaData(l.data);
+    if (modoFatura !== COMPRA) return mesDaData(`${modoFatura}-01`);
+    const regra = regraDoCartao(conta);
+    return regra ? faturaDaCompra(l.data, regra) : mesDaData(l.data);
+  };
+
   const confirmar = async (extrato: Extrato, conta: ContaBancaria) => {
-    const itens = montarItens(linhas, conta.id, conta.tipo === "cartao_credito" ? "credito" : "debito");
+    const cartao = conta.tipo === "cartao_credito";
+    const itens = montarItens(linhas, conta.id, cartao ? "credito" : "debito", cartao ? { periodo: (l) => periodoDaLinha(l, conta) } : undefined);
     setEtapa({ nome: "gravando", extrato, conta });
     try {
       const r = await gravarImportacao(itens);
       await qc.invalidateQueries();
-      mostrar({ tipo: "info", texto: t.importacao.pronto(r.inseridos, r.pulados) });
+      // A RPC conta como inserido o item que só registra a chave (transferência que já existia): não é lançamento
+      const soChave = itens.filter((i) => i.tipo === "so_chave").length;
+      mostrar({ tipo: "info", texto: t.importacao.pronto(Math.max(0, r.inseridos - soChave), r.pulados) });
       if (r.convertidas.length > 0) {
         mostrar(
           {
@@ -385,6 +424,20 @@ export function Importacao() {
 
 
   const { extrato, conta } = etapa;
+  const ehCartao = conta.tipo === "cartao_credito";
+  const regraCartao = regraDoCartao(conta);
+  const nomeMes = (chave: string) => `${t.meses[Number(chave.slice(5, 7)) - 1]!.toLowerCase()}/${chave.slice(0, 4)}`;
+  // Opções de "fatura de": do mês da compra mais antiga até 2 meses depois da mais recente
+  const mesesFatura = (() => {
+    if (!ehCartao || linhas.length === 0) return [];
+    const datas = linhas.map((l) => l.data).sort();
+    const ini = mesDaData(datas[0]!);
+    const fim = mesDaData(datas[datas.length - 1]!);
+    const r: string[] = [];
+    for (let n = ini.ano * 12 + ini.mes - 1; n <= fim.ano * 12 + fim.mes - 1 + 2; n++) r.push(chaveMes({ ano: Math.floor(n / 12), mes: (n % 12) + 1 }));
+    if (modoFatura !== COMPRA && !r.includes(modoFatura)) r.push(modoFatura);
+    return r;
+  })();
   const gravando = etapa.nome === "gravando";
   const novas = linhas.filter((l) => acaoDaLinha(l) === "importar").length;
   const repetidas = linhas.filter((l) => l.repetida).length;
@@ -403,6 +456,20 @@ export function Importacao() {
           </Button>
         </div>
         <p role="status" className="text-muted">{t.importacao.resumo(novas, repetidas, transf)}</p>
+        {ehCartao && (
+          <div className="flex flex-col gap-1.5">
+            <label className="flex max-w-sm flex-col gap-1.5 text-[length:var(--fs-sm)] text-muted">
+              {t.importacao.mesFatura}
+              <select className={select} value={modoFatura} disabled={gravando} onChange={(e) => setModoFatura(e.target.value)}>
+                <option value={COMPRA}>{regraCartao ? t.importacao.porCompra : t.importacao.porMesCompra}</option>
+                {mesesFatura.map((m) => (
+                  <option key={m} value={m}>{t.importacao.faturaDe(nomeMes(m))}</option>
+                ))}
+              </select>
+            </label>
+            {!regraCartao && <span className="text-[length:var(--fs-sm)] text-warning">{t.contas.semRegra}</span>}
+          </div>
+        )}
 
         <ul className="flex flex-col">
           {linhas.map((l) => {
@@ -457,6 +524,12 @@ export function Importacao() {
                   {formatarMovimento(l.centavos, prefs.moeda)}
                 </span>
 
+                {/* Cartão: em que mês a compra conta */}
+                {ehCartao && l.tipo === "gasto" && !bloqueada && (
+                  <span className="order-last col-span-3 text-[length:var(--fs-xs)] text-info md:col-span-6 md:pl-7">
+                    {t.importacao.contaEm(diaMes(l.data), l.centavos > 0, nomeMes(chaveMes(periodoDaLinha(l, conta))))}
+                  </span>
+                )}
                 {/* Avisos e sugestões da linha */}
                 {(l.repetida || s || l.contaFixa) && (
                   <div className="order-last col-span-3 flex flex-col gap-1.5 text-[length:var(--fs-sm)] md:col-span-6 md:pl-7">

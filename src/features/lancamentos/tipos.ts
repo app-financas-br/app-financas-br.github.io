@@ -29,6 +29,8 @@ export type Gasto = Base &
     pago: boolean;
     forma_pagamento: FormaPagamento;
     cartao: string | null;
+    /** Conta bancária do gasto; no crédito, o cartão (docs/08-cartao.md). */
+    conta_bancaria_id?: string | null;
     data: string | null;
     categoria_id: string | null;
     observacao: string | null;
