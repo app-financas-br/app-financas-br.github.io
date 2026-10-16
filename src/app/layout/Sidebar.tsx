@@ -3,9 +3,11 @@ import { Mic } from "lucide-react";
 import { NAVEGACAO } from "../navegacao";
 import { Logo } from "../../components/ui/Logo";
 import { Button } from "../../components/ui/Button";
+import { useAssistenteVoz } from "../../features/voz/AssistenteVoz";
 import { t } from "../../i18n/pt-BR";
 
 export function Sidebar() {
+  const { abrir: abrirVoz } = useAssistenteVoz();
   return (
     <aside className="sticky top-0 hidden h-dvh w-[var(--sidebar-w)] shrink-0 flex-col border-r border-border bg-sidebar px-3 py-5 lg:flex">
       <div className="px-2">
@@ -41,10 +43,9 @@ export function Sidebar() {
           </span>
         </div>
         <p className="mb-3 text-center text-text">{t.voz.frase}</p>
-        <Button variante="contorno" className="h-9 w-full" disabled title={t.voz.emBreve}>
+        <Button variante="contorno" className="h-9 w-full" onClick={abrirVoz}>
           {t.voz.gravar}
         </Button>
-        <p className="mt-2 text-center text-[length:var(--fs-xs)] text-faint">{t.voz.emBreve}</p>
       </div>
     </aside>
   );

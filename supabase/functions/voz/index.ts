@@ -15,11 +15,17 @@ const MODELO_TRANSCRICAO = "whisper-large-v3-turbo";
 const MODELO_INTERPRETACAO = "openai/gpt-oss-20b"; // suporta json_schema com strict
 const TAMANHO_MAX = 4 * 1024 * 1024; // 4 MB sobra para 30 s de webm/opus
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*", // troque pelo domínio do GitHub Pages em produção
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+// Só o app publicado e o servidor de desenvolvimento podem chamar a função pelo navegador
+const ORIGENS = new Set(["https://app-financas-br.github.io", "http://localhost:5173", "http://127.0.0.1:5173"]);
+let CORS: Record<string, string> = {};
+function corsPara(origem: string | null): Record<string, string> {
+  return {
+    "Access-Control-Allow-Origin": origem && ORIGENS.has(origem) ? origem : "https://app-financas-br.github.io",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    Vary: "Origin",
+  };
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -114,6 +120,7 @@ function hojeSaoPaulo() {
 }
 
 Deno.serve(async (req) => {
+  CORS = corsPara(req.headers.get("Origin"));
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ erro: "Método não permitido" }, 405);
 

@@ -29,6 +29,8 @@ import { hoje as hojeLocal, parseData } from "../../lib/datas";
 import { useDadosDashboard } from "./useDadosDashboard";
 import { CardPlanejamento } from "./CardPlanejamento";
 import { CardSaldoContas } from "./CardSaldoContas";
+import { useAssistenteVoz } from "../voz/AssistenteVoz";
+import { Mic } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import { t } from "../../i18n/pt-BR";
 
@@ -87,6 +89,29 @@ function KpiCard({
           </>
         )}
       </p>
+    </Card>
+  );
+}
+
+function BarraVoz() {
+  const { abrir } = useAssistenteVoz();
+  return (
+    <Card className="flex items-center gap-3 !py-3">
+      <button
+        type="button"
+        onClick={abrir}
+        aria-label={t.voz.barra}
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary shadow-[var(--glow-primary)] transition-transform duration-200 ease-app hover:scale-105"
+      >
+        <Mic size={20} aria-hidden />
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold text-text">{t.voz.barra}</p>
+        <p className="truncate text-[length:var(--fs-sm)] text-muted">{t.voz.exemplo}</p>
+      </div>
+      <Button variante="contorno" className="h-9 max-sm:hidden" onClick={abrir}>
+        {t.voz.gravar}
+      </Button>
     </Card>
   );
 }
@@ -195,6 +220,9 @@ export function Dashboard() {
   return (
     <div className="flex flex-col gap-[var(--gap-grid)]">
       {aviso && <Aviso tipo="sucesso">{aviso}</Aviso>}
+
+      {/* Lançar por voz: barra fixa no topo (docs/02-design.md) */}
+      <BarraVoz />
 
       {/* Ordem no celular: KPIs → Disponível → Contas a vencer → Evolução → Categorias → Últimos → Saúde */}
       <div className="grid grid-cols-2 gap-[var(--gap-grid)] lg:grid-cols-12">
