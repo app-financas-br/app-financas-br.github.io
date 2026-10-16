@@ -47,7 +47,7 @@ export function lerCsv(texto: string, sep = detectarSeparador(texto)): string[][
         i++;
       } else if (ch === '"') aspas = false;
       else campo += ch;
-    } else if (ch === '"') aspas = true;
+    } else if (ch === '"' && campo.trim() === "") aspas = true; // aspas só abrem no início do campo
     else if (ch === sep) {
       linha.push(campo);
       campo = "";

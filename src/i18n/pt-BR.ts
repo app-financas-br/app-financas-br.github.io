@@ -275,6 +275,9 @@ export const t = {
         : ` · ${ignoradas.length} ${ignoradas.length === 1 ? "ignorada" : "ignoradas"} sem data ou valor (${ignoradas.length === 1 ? "linha" : "linhas"} ${ignoradas.slice(0, 8).join(", ")}${ignoradas.length > 8 ? "…" : ""})`),
     continuar: "Continuar",
     criarNova: "Criar uma conta nova",
+    nomeCartao: (banco: string) => `Cartão ${banco}`,
+    ignoradasBanco: (linhas: number[]) =>
+      `${linhas.length === 1 ? "1 linha ignorada" : `${linhas.length} linhas ignoradas`} sem data ou valor (${linhas.slice(0, 8).join(", ")}).`,
     lendo: "Lendo arquivo…",
     arquivoInvalido: "Não encontrei transações neste arquivo. Confira se é um OFX.",
     conta: "Conta do extrato",

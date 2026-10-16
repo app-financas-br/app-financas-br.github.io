@@ -7,6 +7,7 @@ import { Button } from "../../components/ui/Button";
 import { Aviso } from "../../components/ui/Aviso";
 import { useToast } from "../../components/ui/Toast";
 import { decodificarOfx, lerOfx, type ExtratoOfx, type TransacaoOfx } from "../../lib/ofx";
+import { lerCsvDeBanco } from "../../lib/bancos";
 import { aplicarMapeamento, CAMPOS, encontrarCabecalho, lerCsv, mapeamentoCompleto, sugerirMapeamento, type Campo, type Celula, type Mapeamento } from "../../lib/planilha";
 import { categorizar, normalizar } from "../../lib/categorizar";
 import { formatarMovimento, paraCentavos } from "../../lib/dinheiro";
@@ -43,6 +44,7 @@ export function Importacao() {
   const [carregando, setCarregando] = useState(false);
   const [contaEscolhida, setContaEscolhida] = useState<string>(NOVA);
   const [nomeNova, setNomeNova] = useState("");
+  const [bancoNovo, setBancoNovo] = useState("");
   const entradaArquivo = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
   const { mostrar } = useToast();
@@ -64,9 +66,16 @@ export function Importacao() {
         ? categorizar(descricao, { categorias: catGasto, regras })
         : null;
 
-  const irParaConta = (extrato: Extrato) => {
-    setContaEscolhida(NOVA);
-    setNomeNova(nomeLivre(nomeDoBanco(extrato.banco) ?? t.contas.novaNome, contas.map((c) => c.nome)));
+  /** Etapa da conta. Com o nome do banco (CSV reconhecido), já escolhe a conta ativa desse banco e tipo, se houver uma só. */
+  const irParaConta = (extrato: Extrato, nomeBanco: string | null = nomeDoBanco(extrato.banco)) => {
+    const cartao = extrato.tipoConta === "cartao";
+    const candidatas = nomeBanco
+      ? contas.filter((c) => c.ativa && normalizar(c.banco) === normalizar(nomeBanco) && (c.tipo === "cartao_credito") === cartao)
+      : [];
+    setContaEscolhida(candidatas.length === 1 ? candidatas[0]!.id : NOVA);
+    const sugestao = nomeBanco ? (cartao ? t.importacao.nomeCartao(nomeBanco) : nomeBanco) : t.contas.novaNome;
+    setNomeNova(nomeLivre(sugestao, contas.map((c) => c.nome)));
+    setBancoNovo(nomeBanco ?? "");
     setEtapa({ nome: "conta", extrato });
   };
 
@@ -79,6 +88,12 @@ export function Importacao() {
       if (ext === "csv" || ext === "txt" || ext === "xlsx") {
         const linhasPlanilha = ext === "xlsx" ? await (await import("./xlsx")).lerXlsx(bytes) : lerCsv(decodificarOfx(new Uint8Array(bytes)));
         if (linhasPlanilha.length < 2) return setEtapa({ nome: "arquivo", erro: t.importacao.planilhaVazia });
+        const doBanco = ext === "xlsx" ? null : lerCsvDeBanco(linhasPlanilha);
+        if (doBanco) {
+          if (doBanco.transacoes.length === 0) return setEtapa({ nome: "arquivo", erro: t.importacao.planilhaVazia });
+          if (doBanco.ignoradas.length > 0) mostrar({ tipo: "info", texto: t.importacao.ignoradasBanco(doBanco.ignoradas) });
+          return irParaConta({ tipoConta: doBanco.tipoConta, banco: null, conta: null, transacoes: doBanco.transacoes }, doBanco.banco);
+        }
         const cabecalho = encontrarCabecalho(linhasPlanilha);
         return setEtapa({ nome: "mapeamento", linhas: linhasPlanilha, cabecalho, mapa: sugerirMapeamento(linhasPlanilha[cabecalho] ?? []) });
       }
@@ -153,7 +168,7 @@ export function Importacao() {
       if (c) void prepararRevisao(extrato, c);
       return;
     }
-    const banco = nomeDoBanco(extrato.banco) ?? "";
+    const banco = nomeDoBanco(extrato.banco) ?? bancoNovo;
     criarConta.mutate(
       {
         nome: nomeNova.trim() || nomeLivre(banco || t.contas.novaNome, contas.map((c) => c.nome)),
