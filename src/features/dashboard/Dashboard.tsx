@@ -28,6 +28,7 @@ import { acumuladoDiario, agruparPequenas, ateHoje, contasAVencer, diaNoPeriodo,
 import { hoje as hojeLocal, parseData } from "../../lib/datas";
 import { useDadosDashboard } from "./useDadosDashboard";
 import { CardPlanejamento } from "./CardPlanejamento";
+import { CardSaldoContas } from "./CardSaldoContas";
 import { Modal } from "../../components/ui/Modal";
 import { t } from "../../i18n/pt-BR";
 
@@ -339,13 +340,16 @@ export function Dashboard() {
         {/* Planejamento do mês */}
         <CardPlanejamento className="order-5 col-span-2 lg:order-none lg:col-span-4" periodo={periodo} formatar={fmt} />
 
+        {/* Saldo em contas */}
+        <CardSaldoContas className="order-5 col-span-2 lg:order-none lg:col-span-4" formatar={fmt} />
+
         {/* Últimos lançamentos */}
-        <Card className="order-6 col-span-2 flex flex-col gap-3 lg:order-none lg:col-span-8">
+        <Card className="order-6 col-span-2 flex flex-col gap-3 lg:order-none lg:col-span-4">
           <CardTitle>{t.painel.ultimos}</CardTitle>
           {ultimos.length === 0 ? (
             <CardVazio>{t.painel.semLancamentos}</CardVazio>
           ) : (
-            <ul className="grid gap-x-6 md:grid-cols-2">
+            <ul className="grid gap-x-6 md:grid-cols-2 lg:grid-cols-1">
               {ultimos.map((u) => {
                 const entra = u.tipo === "entrada" || (u.tipo === "investimento" && u.centavos < 0);
                 return (

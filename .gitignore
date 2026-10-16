@@ -7,3 +7,10 @@ supabase/.temp/
 supabase/.branches/
 .DS_Store
 .claude/settings.local.json
+
+# Extratos bancários: nunca versionar (exemplos anonimizados ficam em src/features/importacao/__exemplos__/)
+*.ofx
+*.qfx
+!src/features/importacao/__exemplos__/*.ofx
+extratos/
+importar/

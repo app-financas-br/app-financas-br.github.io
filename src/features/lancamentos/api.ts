@@ -12,6 +12,7 @@ const chave = (tabela: TabelaMensal, { ano, mes }: Periodo) => [tabela, ano, mes
 /** Depois de qualquer gravação: recalcula o que depende dos lançamentos (dashboard, resumo). */
 function invalidarDerivados(qc: QueryClient) {
   qc.invalidateQueries({ queryKey: ["resumo"] });
+  qc.invalidateQueries({ queryKey: ["saldos_contas"] });
 }
 
 /** Lançamentos de uma tabela no mês/ano selecionado (sempre filtra ano E mes). */

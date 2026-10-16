@@ -1,4 +1,5 @@
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
+import { FileUp } from "lucide-react";
 import { Entradas } from "./Entradas";
 import { ContasFixas } from "./ContasFixas";
 import { Gastos } from "./Gastos";
@@ -19,11 +20,12 @@ export function Lancamentos() {
 
   return (
     <div className="flex flex-col gap-[var(--gap-grid)]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
       {/* Sem barra de rolagem visível (o arrastar continua funcionando se um dia não couber) */}
       <div
         role="tablist"
         aria-label={t.nav.lancamentos}
-        className="flex gap-1 overflow-x-auto rounded-full border border-border bg-card p-1 [scrollbar-width:none] sm:self-start [&::-webkit-scrollbar]:hidden"
+        className="flex gap-1 overflow-x-auto rounded-full border border-border bg-card p-1 [scrollbar-width:none] sm:mr-auto [&::-webkit-scrollbar]:hidden"
       >
         {ABAS.map((a) => {
           const selecionada = a.id === ativa.id;
@@ -44,6 +46,13 @@ export function Lancamentos() {
             </button>
           );
         })}
+      </div>
+      <Link
+        to="/importar"
+        className="inline-flex h-9 items-center justify-center gap-2 self-end rounded-md border border-primary px-3 text-[length:var(--fs-sm)] text-primary-text transition-colors duration-200 ease-app hover:bg-primary-soft sm:self-auto"
+      >
+        <FileUp size={16} aria-hidden /> {t.importacao.abrir}
+      </Link>
       </div>
       <div role="tabpanel">
         <Componente />

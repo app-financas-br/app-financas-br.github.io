@@ -23,6 +23,9 @@ export const NAVEGACAO: ItemNav[] = [
   { rota: "/configuracoes", titulo: t.nav.configuracoes, curto: t.nav.configuracoes, icone: Settings, fase: 1, noCelular: false },
 ];
 
+/** Rotas fora do menu que também têm título. */
+const OUTRAS_ROTAS: Record<string, string> = { "/importar": t.importacao.titulo };
+
 export function tituloDaRota(caminho: string): string {
-  return NAVEGACAO.find((i) => i.rota === caminho)?.titulo ?? t.app.nome;
+  return NAVEGACAO.find((i) => i.rota === caminho)?.titulo ?? OUTRAS_ROTAS[caminho] ?? t.app.nome;
 }
