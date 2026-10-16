@@ -10,7 +10,7 @@ type ComId = { id: string };
 const chave = (tabela: TabelaMensal, { ano, mes }: Periodo) => [tabela, ano, mes] as const;
 
 /** Depois de qualquer gravação: recalcula o que depende dos lançamentos (dashboard, resumo). */
-function invalidarDerivados(qc: QueryClient) {
+export function invalidarDerivados(qc: QueryClient) {
   qc.invalidateQueries({ queryKey: ["resumo"] });
   qc.invalidateQueries({ queryKey: ["saldos_contas"] });
   qc.invalidateQueries({ queryKey: ["investimentos", "todos"] });

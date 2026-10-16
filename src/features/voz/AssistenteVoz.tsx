@@ -12,7 +12,8 @@ import { usePreferencias } from "../preferencias/usePreferencias";
 import { supabase } from "../../lib/supabase";
 import { formatarMovimento, formatarMoeda, parseValor } from "../../lib/dinheiro";
 import { dataPadrao } from "../../lib/datas";
-import { regraDoCartao } from "../../lib/fatura";
+import { regraDoCartao, sugerirFatura } from "../../lib/fatura";
+import { EscolhaFatura, nomeFatura } from "../lancamentos/EscolhaFatura";
 import { itensParaLinhas, montarInsercao, totalPrevisto, type FormaVoz, type LinhaVoz, type TipoVoz } from "../../lib/voz";
 import { enviarVoz } from "./api";
 import { MAX_SEGUNDOS, useGravador } from "./gravador";
@@ -271,17 +272,34 @@ function Painel({ onFechar }: { onFechar: () => void }) {
                     <select aria-label={t.lanc.pagamento} className={campo} value={l.forma === "nao_informado" ? "pix" : l.forma} disabled={salvando}
                       onChange={(e) => {
                         const forma = e.target.value as FormaVoz;
-                        alterar(l.id, { forma, cartaoId: forma === "credito" ? l.cartaoId ?? cartoes[0]?.id ?? null : null });
+                        alterar(l.id, { forma, cartaoId: forma === "credito" ? l.cartaoId ?? cartoes[0]?.id ?? null : null, fatura: null });
                       }}>
                       {FORMAS.map((f) => <option key={f} value={f}>{t.lanc.formas[f as keyof typeof t.lanc.formas]}</option>)}
                     </select>
                   )}
                   {l.tipo === "gasto" && l.forma === "credito" && cartoes.length > 0 && (
                     <select aria-label={t.detalhes.cartaoCredito} className={campo} value={l.cartaoId ?? ""} disabled={salvando}
-                      onChange={(e) => alterar(l.id, { cartaoId: e.target.value || null })}>
+                      onChange={(e) => alterar(l.id, { cartaoId: e.target.value || null, fatura: null })}>
                       {cartoes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                     </select>
                   )}
+                  {l.tipo === "gasto" && l.forma === "credito" && (() => {
+                    // Mês da fatura: a sugestão vem marcada (regra do cartão ou mês da compra) e pode ser trocada
+                    const cartao = cartoes.find((c) => c.id === l.cartaoId);
+                    const regra = cartao ? regraDoCartao(cartao) : null;
+                    const sugestao = sugerirFatura(l.data, regra);
+                    return (
+                      <div className="col-span-2">
+                        <EscolhaFatura
+                          dataCompra={l.data}
+                          valor={l.fatura ?? sugestao}
+                          sugestao={sugestao}
+                          aviso={regra && cartao ? t.fatura.sugestaoCartao(cartao.nome, nomeFatura(sugestao)) : t.fatura.semRegra}
+                          onMudar={(fatura) => alterar(l.id, { fatura })}
+                        />
+                      </div>
+                    );
+                  })()}
                 </div>
               </li>
             );

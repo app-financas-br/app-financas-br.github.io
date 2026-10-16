@@ -195,6 +195,7 @@ export const t = {
     aviso: "Centavos exatos: a última parcela fica com a sobra. Uma parcela não pode ser parcelada de novo.",
     valorZero: "Defina um valor antes de parcelar.",
     feito: (n: number) => `Parcelado em ${n}x.`,
+    primeiraEm: (mes: string) => `1ª parcela em ${mes}.`,
     excluirTitulo: "Excluir parcela",
     excluirTexto: (descricao: string, num: number, total: number) =>
       `"${descricao}" é a parcela ${num}/${total}. O que você quer excluir?`,
@@ -223,6 +224,17 @@ export const t = {
     pularDuplicados: (n: number) => (n === 0 ? "Nenhum mês livre" : `Pular e criar em ${n} mês(es)`),
     criarMesmoAssim: (n: number) => `Criar nos ${n} mesmo assim`,
     erroConferir: "Não foi possível conferir se a conta já existe nos próximos meses.",
+  },
+
+  fatura: {
+    titulo: "Quando paga",
+    este: "Paga este mês",
+    proximo: "Paga mês que vem",
+    sugerido: "sugerido",
+    faturaDe: "Fatura de",
+    compraConta: (dia: string, mes: string) => `Compra ${dia} → conta em ${mes}`,
+    sugestaoCartao: (cartao: string, mes: string) => `Pelo fechamento do ${cartao}, a sugestão é ${mes}.`,
+    semRegra: "Sem fechamento e vencimento cadastrados: começa em \"Paga este mês\".",
   },
 
   detalhes: {

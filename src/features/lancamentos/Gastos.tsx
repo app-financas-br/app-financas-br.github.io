@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { usePeriodo } from "../../app/providers/PeriodoProvider";
 import { usePreferencias } from "../preferencias/usePreferencias";
 import { paraCentavos } from "../../lib/dinheiro";
-import { dataPadrao, hoje as hojeLocal, parseData } from "../../lib/datas";
-import { faturaDaCompra, regraDoCartao } from "../../lib/fatura";
+import { dataPadrao } from "../../lib/datas";
+import { faturaAoMudarData, regraDoCartao } from "../../lib/fatura";
+import { diaMes, nomeFatura } from "./EscolhaFatura";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../components/ui/Toast";
 import { useContasBancarias } from "../contas-bancarias/api";
@@ -39,6 +40,12 @@ export function Gastos() {
   const [parcelando, setParcelando] = useState<Gasto | null>(null);
   const [excluindoParcela, setExcluindoParcela] = useState<Gasto | null>(null);
   const [detalhando, setDetalhando] = useState<Gasto | null>(null);
+  /** Detalhes aberto porque o gasto acabou de virar crédito: a fatura começa na sugestão. */
+  const [virouCredito, setVirouCredito] = useState(false);
+  const abrirDetalhes = (g: Gasto, novoCredito = false) => {
+    setVirouCredito(novoCredito);
+    setDetalhando(g);
+  };
 
   const itens = lista.data ?? [];
   const visiveis = useMemo(() => {
@@ -51,27 +58,35 @@ export function Gastos() {
   const salvar = (id: string, campos: Partial<Gasto>) => atualizar.mutate({ id, campos });
 
   /**
-   * Gasto no cartão de crédito conta no mês da FATURA (docs/08-cartao.md). Ao ligar o cartão
-   * ou mudar a data, recalcula; se for outro mês, o gasto muda para lá e o toast avisa.
+   * Gasto no crédito conta no mês da FATURA escolhido (docs/08-cartao.md): vem do modal
+   * (ano/mes) ou, ao mudar a data na tabela, de faturaAoMudarData. Se for outro mês, o gasto
+   * muda para lá e o toast avisa com "Ver".
    */
   const salvarComFatura = (g: Gasto, campos: Partial<Gasto>) => {
     const forma = campos.forma_pagamento ?? g.forma_pagamento;
-    const cartao = cartoes.find((c) => c.id === (campos.conta_bancaria_id !== undefined ? campos.conta_bancaria_id : g.conta_bancaria_id));
-    const regra = forma === "credito" && cartao ? regraDoCartao(cartao) : null;
-    const data = campos.data ?? g.data ?? hojeLocal();
-    const f = regra ? faturaDaCompra(data, regra) : null;
-    if (!f || (f.ano === g.ano && f.mes === g.mes)) return salvar(g.id, campos);
+    let f = campos.ano && campos.mes ? { ano: campos.ano, mes: campos.mes } : null;
+    if (!f && forma === "credito" && campos.data) {
+      const cartao = cartoes.find((c) => c.id === (campos.conta_bancaria_id !== undefined ? campos.conta_bancaria_id : g.conta_bancaria_id));
+      f = faturaAoMudarData(g.data, { ano: g.ano, mes: g.mes }, campos.data, cartao ? regraDoCartao(cartao) : null);
+    }
+    if (!f || (f.ano === g.ano && f.mes === g.mes)) {
+      const { ano: _a, mes: _m, ...resto } = campos;
+      return salvar(g.id, resto);
+    }
+    const destino = f;
+    const data = campos.data ?? g.data;
+    const nomeCartao = campos.cartao !== undefined ? campos.cartao : g.cartao;
     atualizar.mutate(
-      { id: g.id, campos: { ...campos, ano: f.ano, mes: f.mes } },
+      { id: g.id, campos: { ...campos, ano: destino.ano, mes: destino.mes } },
       {
         onSuccess: () => {
           // O mês de destino pode estar em cache sem o gasto: descarta para buscar de novo ao abrir
-          qc.removeQueries({ queryKey: ["gastos_variaveis", f.ano, f.mes], exact: true });
+          qc.removeQueries({ queryKey: ["gastos_variaveis", destino.ano, destino.mes], exact: true });
           qc.invalidateQueries({ queryKey: ["gastos_variaveis"] });
           mostrar({
             tipo: "info",
-            texto: t.lanc.movidoFatura(parseData(data).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }), cartao!.nome, `${t.meses[f.mes - 1]!.toLowerCase()} de ${f.ano}`),
-            acao: { rotulo: t.lanc.ver, onClick: () => setPeriodo({ ano: f.ano, mes: f.mes }) },
+            texto: !data ? nomeFatura(destino) : nomeCartao ? t.lanc.movidoFatura(diaMes(data), nomeCartao, nomeFatura(destino)) : `${t.fatura.compraConta(diaMes(data), nomeFatura(destino))}.`,
+            acao: { rotulo: t.lanc.ver, onClick: () => setPeriodo(destino) },
           });
         },
       },
@@ -80,11 +95,12 @@ export function Gastos() {
 
   return (
     <>
-    <ModalParcelar item={parcelando} tabela="gastos_variaveis" moeda={prefs.moeda} onFechar={() => setParcelando(null)} />
+    <ModalParcelar item={parcelando} tabela="gastos_variaveis" moeda={prefs.moeda} cartoes={cartoes} onFechar={() => setParcelando(null)} />
     <ModalDetalhesGasto
       gasto={detalhando}
       onFechar={() => setDetalhando(null)}
       cartoes={cartoes}
+      sugerirAoAbrir={virouCredito}
       onSalvar={(campos) => detalhando && salvarComFatura(detalhando, campos)}
     />
     <ModalExcluirParcela
@@ -140,7 +156,7 @@ export function Gastos() {
             onExcluir={() => (g.grupo_parcela ? setExcluindoParcela(g) : excluir(g))}
             acoes={
               <>
-                <BotaoAcao rotulo={g.observacao ? t.detalhes.botaoComObs : t.detalhes.botao} onClick={() => setDetalhando(g)}>
+                <BotaoAcao rotulo={g.observacao ? t.detalhes.botaoComObs : t.detalhes.botao} onClick={() => abrirDetalhes(g)}>
                   <NotebookPen size={16} className={g.observacao ? "text-primary-text" : ""} />
                 </BotaoAcao>
                 {!g.grupo_parcela && (
@@ -181,10 +197,10 @@ export function Gastos() {
                     cor="neutra"
                     rotulo={`${t.lanc.pagamento}: ${t.lanc.formas[g.forma_pagamento]}. ${t.lanc.cliqueParaTrocar}`}
                     onClick={() => {
-                      // Saindo do crédito, desliga o cartão; entrando no crédito com cartões cadastrados, pede o cartão
+                      // Saindo do crédito, desliga o cartão; entrando no crédito, pede o cartão e o mês da fatura
                       const saiDoCartao = g.forma_pagamento === "credito" && cartoes.some((c) => c.id === g.conta_bancaria_id);
                       salvar(g.id, saiDoCartao ? { forma_pagamento: proxima, conta_bancaria_id: null } : { forma_pagamento: proxima });
-                      if (proxima === "credito" && cartoes.length > 0) setDetalhando({ ...g, forma_pagamento: proxima });
+                      if (proxima === "credito") abrirDetalhes({ ...g, forma_pagamento: proxima }, true);
                     }}
                   >
                     {t.lanc.formas[g.forma_pagamento]}

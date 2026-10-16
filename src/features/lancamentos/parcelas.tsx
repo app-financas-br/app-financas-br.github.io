@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
@@ -7,26 +7,48 @@ import { useToast } from "../../components/ui/Toast";
 import { supabase } from "../../lib/supabase";
 import { datasParcelas, dividirParcelas, periodosParcelas } from "../../lib/calculos";
 import { formatarMoeda, paraCentavos, type Moeda } from "../../lib/dinheiro";
-import { parseData } from "../../lib/datas";
+import { hoje, parseData, type Periodo } from "../../lib/datas";
+import { faturasDasParcelas, regraDoCartao, sugerirFatura } from "../../lib/fatura";
+import { usePeriodo } from "../../app/providers/PeriodoProvider";
+import type { ContaBancaria } from "../contas-bancarias/api";
+import { invalidarDerivados } from "./api";
+import { diaMes, EscolhaFatura, nomeFatura } from "./EscolhaFatura";
 import { t } from "../../i18n/pt-BR";
 import type { ContaFixa, Gasto } from "./tipos";
 
 type Parcelavel = ContaFixa | Gasto;
 type TabelaParcelavel = "contas_fixas" | "gastos_variaveis";
+const ehCredito = (item: Parcelavel): item is Gasto => "forma_pagamento" in item && item.forma_pagamento === "credito";
 
 const dataDoItem = (item: Parcelavel) => ("vencimento" in item ? item.vencimento : item.data);
 
-/** Chama a RPC transacional parcelar_lancamento (tudo ou nada) e recarrega todos os meses da tabela. */
+/**
+ * Chama a RPC transacional parcelar_lancamento (tudo ou nada) e recarrega todos os meses da tabela.
+ * `primeira` (só gastos): mês da fatura da 1ª parcela; se não for o mês aberto, o toast oferece "Ver".
+ */
 export function useParcelar(tabela: TabelaParcelavel) {
   const qc = useQueryClient();
   const { mostrar } = useToast();
+  const { ano, mes, setPeriodo } = usePeriodo();
   return useMutation({
     mutationKey: ["salvar", tabela],
-    mutationFn: async ({ id, parcelas }: { id: string; parcelas: number }) => {
-      const { error } = await supabase.rpc("parcelar_lancamento", { p_tabela: tabela, p_id: id, p_parcelas: parcelas });
+    mutationFn: async ({ id, parcelas, primeira }: { id: string; parcelas: number; primeira?: Periodo }) => {
+      const { error } = await supabase.rpc("parcelar_lancamento", {
+        p_tabela: tabela,
+        p_id: id,
+        p_parcelas: parcelas,
+        ...(primeira ? { p_ano: primeira.ano, p_mes: primeira.mes } : {}),
+      });
       if (error) throw error;
     },
-    onSuccess: (_d, { parcelas }) => mostrar({ tipo: "info", texto: t.parcelas.feito(parcelas) }),
+    onSuccess: (_d, { parcelas, primeira }) => {
+      const mudou = primeira && (primeira.ano !== ano || primeira.mes !== mes);
+      mostrar({
+        tipo: "info",
+        texto: mudou ? `${t.parcelas.feito(parcelas)} ${t.parcelas.primeiraEm(nomeFatura(primeira))}` : t.parcelas.feito(parcelas),
+        ...(mudou ? { acao: { rotulo: t.lanc.ver, onClick: () => setPeriodo(primeira) } } : {}),
+      });
+    },
     onError: (erro) => {
       console.error("[parcelas] parcelar", erro);
       // Erros de regra (22023) vêm do banco já em português
@@ -34,39 +56,64 @@ export function useParcelar(tabela: TabelaParcelavel) {
       mostrar({ tipo: "erro", texto: e.code === "22023" && e.message ? e.message : t.lanc.erroSalvar });
     },
     onSettled: () => {
+      // Meses fora da tela podem estar em cache sem as parcelas novas: descarta para buscar ao abrir
+      qc.removeQueries({ queryKey: [tabela], type: "inactive" });
       qc.invalidateQueries({ queryKey: [tabela] });
-      qc.invalidateQueries({ queryKey: ["resumo"] });
+      invalidarDerivados(qc);
     },
   });
 }
 
-/** Modal com a escolha de 2 a 12 parcelas e a prévia de cada uma (mês, data, valor). */
+/**
+ * Modal com a escolha de 2 a 12 parcelas e a prévia de cada uma (mês, data, valor).
+ * No crédito: escolha do mês da fatura da 1ª parcela e "Compra 16/10 → conta em <mês>" por parcela.
+ */
 export function ModalParcelar({
   item,
   tabela,
   moeda,
+  cartoes = [],
   onFechar,
 }: {
   item: Parcelavel | null;
   tabela: TabelaParcelavel;
   moeda: Moeda;
+  cartoes?: ContaBancaria[];
   onFechar: () => void;
 }) {
   const [n, setN] = useState(2);
+  /** Mês da 1ª parcela escolhido; null = a fatura em que o gasto já está (escolhida ao lançar). */
+  const [escolhida, setEscolhida] = useState<Periodo | null>(null);
   const parcelar = useParcelar(tabela);
+  const credito = item !== null && ehCredito(item);
+  const dataCompra = (item && dataDoItem(item)) ?? hoje();
+  const cartao = credito ? cartoes.find((c) => c.id === item.conta_bancaria_id) : undefined;
+  const regra = cartao ? regraDoCartao(cartao) : null;
+
+  const primeira = escolhida ?? { ano: item?.ano ?? 0, mes: item?.mes ?? 0 };
+  useEffect(() => setEscolhida(null), [item]);
 
   const previa = useMemo(() => {
     if (!item) return [];
     const valores = dividirParcelas(paraCentavos(item.valor), n);
     const data = dataDoItem(item);
     const datas = data ? datasParcelas(data, n) : null;
+    if (credito) {
+      // A compra foi num dia só: todas as parcelas mostram a data real e o mês em que contam
+      return faturasDasParcelas(primeira, n).map((p, i) => ({
+        num: i + 1,
+        mes: t.fatura.compraConta(diaMes(dataCompra), nomeFatura(p)),
+        data: null,
+        centavos: valores[i]!,
+      }));
+    }
     return periodosParcelas({ ano: item.ano, mes: item.mes }, n).map((p, i) => ({
       num: i + 1,
       mes: `${t.mesesCurtos[p.mes - 1]}/${p.ano}`,
       data: datas ? parseData(datas[i]!).toLocaleDateString("pt-BR") : null,
       centavos: valores[i]!,
     }));
-  }, [item, n]);
+  }, [item, n, credito, primeira, dataCompra]);
 
   const fechar = () => {
     setN(2);
@@ -85,7 +132,7 @@ export function ModalParcelar({
           </Button>
           <Button
             disabled={parcelar.isPending || paraCentavos(item?.valor) === 0}
-            onClick={() => item && parcelar.mutate({ id: item.id, parcelas: n }, { onSuccess: fechar })}
+            onClick={() => item && parcelar.mutate({ id: item.id, parcelas: n, ...(credito ? { primeira } : {}) }, { onSuccess: fechar })}
           >
             {parcelar.isPending ? t.auth.salvando : t.parcelas.confirmar(n)}
           </Button>
@@ -112,12 +159,22 @@ export function ModalParcelar({
               ))}
             </select>
           </label>
+          {credito && (
+            <EscolhaFatura
+              dataCompra={dataCompra}
+              valor={primeira}
+              sugestao={sugerirFatura(dataCompra, regra)}
+              aviso={regra && cartao ? t.fatura.sugestaoCartao(cartao.nome, nomeFatura(sugerirFatura(dataCompra, regra))) : t.fatura.semRegra}
+              mostrarResumo={false}
+              onMudar={setEscolhida}
+            />
+          )}
           <ol className="max-h-60 overflow-y-auto rounded-md border border-border">
             {previa.map((p) => (
               <li key={p.num} className="num flex items-center gap-3 border-b border-border px-3 py-2 last:border-b-0">
-                <span className="w-10 text-muted">{p.num}/{n}</span>
-                <span className="flex-1 text-text">{p.mes}{p.data && <span className="ml-2 text-muted">{p.data}</span>}</span>
-                <span className="font-medium text-text">{formatarMoeda(p.centavos, moeda)}</span>
+                <span className="w-9 shrink-0 text-muted">{p.num}/{n}</span>
+                <span className={`min-w-0 flex-1 text-text ${credito ? "text-[length:var(--fs-sm)] leading-snug" : ""}`}>{p.mes}{p.data && <span className="ml-2 text-muted">{p.data}</span>}</span>
+                <span className="shrink-0 font-medium text-text">{formatarMoeda(p.centavos, moeda)}</span>
               </li>
             ))}
           </ol>

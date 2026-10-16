@@ -82,6 +82,14 @@ describe("montarInsercao", () => {
     expect(montarInsercao(l, out, { id: "x", nome: "X", regra: null }).valores).toMatchObject({ ano: 2026, mes: 10, conta_bancaria_id: "x" });
   });
 
+  it("crédito com mês escolhido no painel: vale a escolha, não a sugestão do cartão", () => {
+    const l = { ...mercado!, forma: "credito" as const, fatura: { ano: 2026, mes: 10 } };
+    const cartao = { id: "nu", nome: "Nu", regra: { diaFechamento: 28, diaVencimento: 5, compraNoFechamentoProxima: true } };
+    expect(montarInsercao(l, out, cartao).valores).toMatchObject({ ano: 2026, mes: 10, data: "2026-10-16" });
+    // Sem cartão cadastrado: começa no mês da compra
+    expect(montarInsercao({ ...mercado!, forma: "credito", data: "2026-09-30" }, out).valores).toMatchObject({ ano: 2026, mes: 9 });
+  });
+
   it("entrada recebida, conta fixa pendente com vencimento, resgate negativo", () => {
     const base = itensParaLinhas(exemplo, categorias, out, agora)[0]!;
     expect(montarInsercao({ ...base, tipo: "entrada" }, out)).toMatchObject({ tabela: "entradas", valores: { recebido: true, valor: 52.9 } });

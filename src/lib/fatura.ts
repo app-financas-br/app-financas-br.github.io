@@ -63,3 +63,56 @@ export function regraDoCartao(c: { dia_fechamento: number | null; dia_vencimento
   if (!c.dia_fechamento || !c.dia_vencimento) return null;
   return { diaFechamento: c.dia_fechamento, diaVencimento: c.dia_vencimento, compraNoFechamentoProxima: c.compra_no_fechamento_proxima };
 }
+
+// ---------------------------------------------------------------------------
+// Escolha do mês da fatura no lançamento manual (docs/08-cartao.md).
+// "Paga este mês" = mês da compra; "Paga mês que vem" = o seguinte; qualquer outro mês = "outro".
+
+export type OpcaoFatura = "este" | "proximo" | "outro";
+
+/** Período somado de n meses (n pode ser negativo). */
+export const somarMeses = (p: Periodo, n: number): Periodo => somarMes(p.ano, p.mes, n);
+const indice = (p: Periodo) => p.ano * 12 + (p.mes - 1);
+
+/** Mês (ano/mês) de uma data AAAA-MM-DD. */
+export function mesDaData(data: string): Periodo {
+  const d = parseData(data);
+  return { ano: d.getFullYear(), mes: d.getMonth() + 1 };
+}
+
+/** Mês da fatura de cada botão de escolha rápida. */
+export function faturaDaOpcao(dataCompra: string, opcao: "este" | "proximo"): Periodo {
+  return somarMeses(mesDaData(dataCompra), opcao === "este" ? 0 : 1);
+}
+
+/** Qual botão fica marcado para o mês escolhido em "Fatura de". */
+export function opcaoDaFatura(dataCompra: string, fatura: Periodo): OpcaoFatura {
+  const dif = indice(fatura) - indice(mesDaData(dataCompra));
+  return dif === 0 ? "este" : dif === 1 ? "proximo" : "outro";
+}
+
+/**
+ * Sugestão que vem marcada: com fechamento/vencimento cadastrados, a regra do cartão;
+ * sem cadastro, "Paga este mês" (nunca adivinha o mês seguinte).
+ */
+export function sugerirFatura(dataCompra: string, regra: RegraCartao | null): Periodo {
+  if (!regra) return mesDaData(dataCompra);
+  const f = faturaDaCompra(dataCompra, regra);
+  return { ano: f.ano, mes: f.mes };
+}
+
+/**
+ * Mês da fatura quando a data da compra muda na tabela: se a pessoa estava na sugestão,
+ * segue a nova sugestão; se tinha trocado à mão, mantém a mesma distância do mês da compra.
+ */
+export function faturaAoMudarData(dataAntiga: string | null, faturaAtual: Periodo, dataNova: string, regra: RegraCartao | null): Periodo {
+  if (!dataAntiga) return sugerirFatura(dataNova, regra);
+  const sugerida = sugerirFatura(dataAntiga, regra);
+  if (indice(sugerida) === indice(faturaAtual)) return sugerirFatura(dataNova, regra);
+  return somarMeses(mesDaData(dataNova), indice(faturaAtual) - indice(mesDaData(dataAntiga)));
+}
+
+/** Parcelado: a 1ª parcela no mês escolhido e as demais nos meses seguintes. */
+export function faturasDasParcelas(primeira: Periodo, n: number): Periodo[] {
+  return Array.from({ length: n }, (_, i) => somarMeses(primeira, i));
+}

@@ -3,6 +3,9 @@ import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import { Campo } from "../../components/ui/Campo";
 import type { ContaBancaria } from "../contas-bancarias/api";
+import { regraDoCartao, sugerirFatura } from "../../lib/fatura";
+import { hoje, type Periodo } from "../../lib/datas";
+import { EscolhaFatura, nomeFatura } from "./EscolhaFatura";
 import { t } from "../../i18n/pt-BR";
 import type { Gasto } from "./tipos";
 
@@ -13,7 +16,7 @@ const OUTRO = "__outro__";
 /** O cartão só faz sentido em débito ou crédito. */
 export const usaCartao = (forma: Gasto["forma_pagamento"]) => forma === "debito" || forma === "credito";
 
-export type CamposDetalhes = { cartao: string | null; observacao: string | null; conta_bancaria_id?: string | null };
+export type CamposDetalhes = { cartao: string | null; observacao: string | null; conta_bancaria_id?: string | null; ano?: number; mes?: number };
 
 /** Normaliza o que vai para o banco: texto sem espaços sobrando; vazio = null; cartão só em débito/crédito. */
 export function camposDetalhes(gasto: Pick<Gasto, "forma_pagamento">, cartao: string, observacao: string) {
@@ -26,16 +29,20 @@ export function camposDetalhes(gasto: Pick<Gasto, "forma_pagamento">, cartao: st
 
 /**
  * Detalhes do gasto. No crédito, com cartões cadastrados, o cartão vem de uma lista
- * (liga o gasto ao cartão e ao mês da fatura); "Outro" mantém o texto livre de antes.
+ * (liga o gasto ao cartão); "Outro" mantém o texto livre de antes. No crédito, a pessoa escolhe
+ * o mês da fatura ("Paga este mês" / "Paga mês que vem" / "Fatura de"); a sugestão vem marcada.
  */
 export function ModalDetalhesGasto({
   gasto,
   cartoes = [],
+  sugerirAoAbrir = false,
   onSalvar,
   onFechar,
 }: {
   gasto: Gasto | null;
   cartoes?: ContaBancaria[];
+  /** Acabou de virar crédito: a fatura começa na sugestão em vez do mês atual do gasto. */
+  sugerirAoAbrir?: boolean;
   onSalvar: (campos: CamposDetalhes) => void;
   onFechar: () => void;
 }) {
@@ -44,23 +51,38 @@ export function ModalDetalhesGasto({
   const [cartao, setCartao] = useState("");
   const [cartaoId, setCartaoId] = useState(OUTRO);
   const [observacao, setObservacao] = useState("");
+  /** Mês da fatura escolhido; null = o padrão (sugestão ao virar crédito, ou o mês atual do gasto). */
+  const [escolhida, setEscolhida] = useState<Periodo | null>(null);
+  const dataCompra = gasto?.data ?? hoje();
+  const regraDe = (id: string) => {
+    const c = cartoes.find((x) => x.id === id);
+    return c ? regraDoCartao(c) : null;
+  };
 
   useEffect(() => {
     setCartao(gasto?.cartao ?? "");
     setObservacao(gasto?.observacao ?? "");
-    setCartaoId(cartoes.some((c) => c.id === gasto?.conta_bancaria_id) ? gasto!.conta_bancaria_id! : cartoes.length > 0 ? cartoes[0]!.id : OUTRO);
+    const id = cartoes.some((c) => c.id === gasto?.conta_bancaria_id) ? gasto!.conta_bancaria_id! : cartoes.length > 0 ? cartoes[0]!.id : OUTRO;
+    setCartaoId(id);
+    setEscolhida(null);
   }, [gasto]); // recarrega só quando abre outro gasto
 
   if (!gasto) return null;
   const comCartao = usaCartao(gasto.forma_pagamento);
-  const lista = gasto.forma_pagamento === "credito" && cartoes.length > 0;
+  const credito = gasto.forma_pagamento === "credito";
+  const lista = credito && cartoes.length > 0;
+  const cartaoEscolhido = lista ? cartoes.find((c) => c.id === cartaoId) : undefined;
+  const regra = cartaoEscolhido ? regraDoCartao(cartaoEscolhido) : null;
+  const sugestao = sugerirFatura(dataCompra, regra);
+  const fatura = escolhida ?? (sugerirAoAbrir ? sugestao : { ano: gasto.ano, mes: gasto.mes });
+  const doMes = credito ? { ano: fatura.ano, mes: fatura.mes } : {};
 
   const salvar = () => {
     if (lista && cartaoId !== OUTRO) {
       const c = cartoes.find((x) => x.id === cartaoId)!;
-      onSalvar({ ...camposDetalhes(gasto, c.nome, observacao), conta_bancaria_id: c.id });
+      onSalvar({ ...camposDetalhes(gasto, c.nome, observacao), conta_bancaria_id: c.id, ...doMes });
     } else {
-      const campos: CamposDetalhes = camposDetalhes(gasto, cartao, observacao);
+      const campos: CamposDetalhes = { ...camposDetalhes(gasto, cartao, observacao), ...doMes };
       // Saiu de um cartão da lista para "Outro": desliga o gasto do cartão
       if (lista && cartoes.some((c) => c.id === gasto.conta_bancaria_id)) campos.conta_bancaria_id = null;
       onSalvar(campos);
@@ -91,7 +113,11 @@ export function ModalDetalhesGasto({
             <select
               id={idCartao}
               value={cartaoId}
-              onChange={(e) => setCartaoId(e.target.value)}
+              onChange={(e) => {
+                // Outro cartão, outra regra: volta para a sugestão dele
+                setCartaoId(e.target.value);
+                setEscolhida(sugerirFatura(dataCompra, regraDe(e.target.value)));
+              }}
               className="h-11 w-full cursor-pointer rounded-md border border-border bg-input px-3 text-text focus:border-border-glow [&>option]:bg-elevated"
             >
               {cartoes.map((c) => (
@@ -112,6 +138,15 @@ export function ModalDetalhesGasto({
         ) : !comCartao ? (
           <p className="text-[length:var(--fs-sm)] text-muted">{t.detalhes.semCartao(t.lanc.formas[gasto.forma_pagamento])}</p>
         ) : null}
+        {credito && (
+          <EscolhaFatura
+            dataCompra={dataCompra}
+            valor={fatura}
+            sugestao={sugestao}
+            aviso={regra && cartaoEscolhido ? t.fatura.sugestaoCartao(cartaoEscolhido.nome, nomeFatura(sugestao)) : t.fatura.semRegra}
+            onMudar={setEscolhida}
+          />
+        )}
         <div className="flex flex-col gap-1.5">
           <label htmlFor={idObs} className="text-[length:var(--fs-sm)] font-medium text-muted">
             {t.detalhes.observacao}

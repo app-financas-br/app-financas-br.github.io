@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { faturaDaCompra, faturasDoCartao, parcelaDaDescricao, regraDoCartao, type RegraCartao } from "./fatura";
+import { faturaAoMudarData, faturaDaCompra, faturaDaOpcao, faturasDasParcelas, faturasDoCartao, opcaoDaFatura, parcelaDaDescricao, regraDoCartao, sugerirFatura, type RegraCartao } from "./fatura";
 
 const regra = (diaFechamento: number, diaVencimento: number, compraNoFechamentoProxima = true): RegraCartao => ({
   diaFechamento,
@@ -88,5 +88,45 @@ describe("parcelas e regra do cartão", () => {
   it("sem fechamento ou vencimento, não há regra (fica no mês da compra)", () => {
     expect(regraDoCartao({ dia_fechamento: null, dia_vencimento: 10, compra_no_fechamento_proxima: true })).toBeNull();
     expect(regraDoCartao({ dia_fechamento: 3, dia_vencimento: 10, compra_no_fechamento_proxima: false })).toEqual(regra(3, 10, false));
+  });
+});
+
+describe("escolha do mês da fatura (Paga este mês / mês que vem)", () => {
+  const fecha14 = regra(14, 21); // fecha dia 14, vence dia 21 do mesmo mês
+  const p = (x: { ano: number; mes: number }) => `${x.ano}-${String(x.mes).padStart(2, "0")}`;
+
+  it("fechamento dia 14: compra dia 10 sugere 'este mês'; dia 15 sugere 'mês que vem'", () => {
+    const dia10 = sugerirFatura("2026-10-10", fecha14);
+    const dia15 = sugerirFatura("2026-10-15", fecha14);
+    expect([p(dia10), opcaoDaFatura("2026-10-10", dia10)]).toEqual(["2026-10", "este"]);
+    expect([p(dia15), opcaoDaFatura("2026-10-15", dia15)]).toEqual(["2026-11", "proximo"]);
+  });
+
+  it("troca manual contra a sugestão: o botão marcado acompanha o mês escolhido", () => {
+    expect(p(faturaDaOpcao("2026-10-15", "este"))).toBe("2026-10"); // sugestão era novembro
+    expect(p(faturaDaOpcao("2026-10-10", "proximo"))).toBe("2026-11"); // sugestão era outubro
+    expect(opcaoDaFatura("2026-10-10", { ano: 2027, mes: 1 })).toBe("outro"); // "Fatura de" livre
+    expect(p(faturaDaOpcao("2026-12-20", "proximo"))).toBe("2027-01"); // vira o ano
+  });
+
+  it("cartão sem cadastro (ou sem fechamento/vencimento): começa em 'Paga este mês'", () => {
+    const f = sugerirFatura("2026-10-28", null);
+    expect([p(f), opcaoDaFatura("2026-10-28", f)]).toEqual(["2026-10", "este"]);
+  });
+
+  it("parcelado: a escolha vale para a 1ª parcela e as demais seguem mês a mês", () => {
+    const este = faturasDasParcelas(faturaDaOpcao("2026-10-16", "este"), 3).map(p);
+    const proximo = faturasDasParcelas(faturaDaOpcao("2026-10-16", "proximo"), 3).map(p);
+    expect(este).toEqual(["2026-10", "2026-11", "2026-12"]);
+    expect(proximo).toEqual(["2026-11", "2026-12", "2027-01"]);
+  });
+
+  it("mudar a data da compra: na sugestão segue a regra; escolha manual mantém a distância", () => {
+    // Estava na sugestão (dia 10 → outubro); muda para dia 15 → novembro
+    expect(p(faturaAoMudarData("2026-10-10", { ano: 2026, mes: 10 }, "2026-10-15", fecha14))).toBe("2026-11");
+    // Tinha trocado para novembro à mão (sugestão era outubro); muda para 05/12 → mantém +1: janeiro
+    expect(p(faturaAoMudarData("2026-10-10", { ano: 2026, mes: 11 }, "2026-12-05", fecha14))).toBe("2027-01");
+    // Sem cadastro, "este mês" acompanha o mês da nova data
+    expect(p(faturaAoMudarData("2026-10-10", { ano: 2026, mes: 10 }, "2026-09-30", null))).toBe("2026-09");
   });
 });

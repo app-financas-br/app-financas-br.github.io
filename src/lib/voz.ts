@@ -4,7 +4,7 @@
 import { normalizar } from "./categorizar";
 import { dataPadrao, type Periodo } from "./datas";
 import { deCentavos, paraCentavos } from "./dinheiro";
-import { faturaDaCompra, type RegraCartao } from "./fatura";
+import { sugerirFatura, type RegraCartao } from "./fatura";
 
 export type TipoVoz = "gasto" | "entrada" | "investimento" | "conta_fixa";
 export type FormaVoz = "pix" | "debito" | "credito" | "dinheiro" | "nao_informado";
@@ -35,6 +35,8 @@ export type LinhaVoz = {
   data: string;
   /** Cartão escolhido quando a forma é crédito. */
   cartaoId: string | null;
+  /** Crédito: mês da fatura escolhido no painel; ausente = a sugestão (regra do cartão ou mês da compra). */
+  fatura?: { ano: number; mes: number } | null;
 };
 
 type CategoriaVoz = { id: string; nome: string; tipo: "gasto" | "investimento"; oculta?: boolean };
@@ -93,14 +95,14 @@ export function montarInsercao(l: LinhaVoz, periodo: Periodo, cartao?: { id: str
     case "gasto": {
       const forma = l.forma === "nao_informado" ? "pix" : l.forma;
       const valores: Record<string, unknown> = { ...base, valor, pago: true, forma_pagamento: forma, data: l.data, categoria_id: l.categoriaId };
-      if (forma === "credito" && cartao) {
-        valores.conta_bancaria_id = cartao.id;
-        valores.cartao = cartao.nome;
-        if (cartao.regra) {
-          const f = faturaDaCompra(l.data, cartao.regra);
-          valores.ano = f.ano;
-          valores.mes = f.mes;
+      if (forma === "credito") {
+        if (cartao) {
+          valores.conta_bancaria_id = cartao.id;
+          valores.cartao = cartao.nome;
         }
+        const f = l.fatura ?? sugerirFatura(l.data, cartao?.regra ?? null);
+        valores.ano = f.ano;
+        valores.mes = f.mes;
       }
       return { tabela: "gastos_variaveis", valores, parcelas: l.parcelas };
     }
