@@ -30,6 +30,12 @@ export function formatarMoeda(centavos: number, moeda: Moeda = "BRL"): string {
   return f.format(centavos / 100);
 }
 
+/** Movimento com sinal: "+R$ 10,00" / "−R$ 10,00"; zero fica sem sinal ("R$ 0,00"). */
+export function formatarMovimento(centavos: number, moeda: Moeda = "BRL"): string {
+  if (centavos === 0) return formatarMoeda(0, moeda);
+  return `${centavos > 0 ? "+" : "−"}${formatarMoeda(Math.abs(centavos), moeda)}`;
+}
+
 /** Formata uma variação percentual com sinal: +6,21% / -1,08%. */
 export function formatarPercentual(valor: number, casas = 2): string {
   const sinal = valor > 0 ? "+" : valor < 0 ? "-" : "";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deCentavos, formatarMoeda, formatarPercentual, paraCentavos, parseValor } from "./dinheiro";
+import { deCentavos, formatarMoeda, formatarMovimento, formatarPercentual, paraCentavos, parseValor } from "./dinheiro";
 
 // Intl usa espaço não separável entre "R$" e o número
 const sem = (s: string) => s.replace(/ /g, " ");
@@ -27,6 +27,10 @@ describe("dinheiro", () => {
   it("percentual com sinal", () => {
     expect(formatarPercentual(6.21)).toBe("+6,21%");
     expect(formatarPercentual(-1.08)).toBe("-1,08%");
+    expect(formatarMovimento(1050)).toBe(`+${formatarMoeda(1050)}`);
+    expect(formatarMovimento(-1050)).toBe(`−${formatarMoeda(1050)}`);
+    expect(formatarMovimento(0)).toBe(formatarMoeda(0)); // zero sem sinal
+    expect(formatarMovimento(-0)).toBe(formatarMoeda(0));
     expect(formatarPercentual(0)).toBe("0,00%");
   });
 

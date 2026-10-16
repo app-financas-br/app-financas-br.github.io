@@ -1,0 +1,10 @@
+Extrato de conta corrente;;;;
+Cliente: FULANO DE TAL;;;;
+;;;;
+Data;Histórico;Documento;Débito;Crédito
+01/10/26;"SALDO ANTERIOR";;;
+03/10/26;PIX RECEBIDO JOÃO;123;;1.250,00
+04/10/26;"PAGTO BOLETO; ENERGIA";456;189,73;
+05/10/26;COMPRA CARTÃO PADARIA;;12,50;
+;;;;
+Total;;;202,23;1.250,00

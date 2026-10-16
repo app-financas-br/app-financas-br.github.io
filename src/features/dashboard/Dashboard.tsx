@@ -22,7 +22,7 @@ import { Gauge } from "../../components/graficos/Gauge";
 import { AreaEvolucao } from "../../components/graficos/AreaEvolucao";
 import { usePeriodo } from "../../app/providers/PeriodoProvider";
 import { useCategorias } from "../categorias/useCategorias";
-import { formatarMoeda, formatarPercentual, paraCentavos, type Moeda } from "../../lib/dinheiro";
+import { formatarMoeda, formatarMovimento, formatarPercentual, paraCentavos, type Moeda } from "../../lib/dinheiro";
 import { rotuloSaude, saudeMes, variacaoPercentual } from "../../lib/calculos";
 import { acumuladoDiario, agruparPequenas, ateHoje, contasAVencer, diaNoPeriodo, porCategoria, ultimosLancamentos } from "../../lib/dashboard";
 import { hoje as hojeLocal, parseData } from "../../lib/datas";
@@ -356,9 +356,8 @@ export function Dashboard() {
                   <li key={`${u.tipo}-${u.id}`} className="flex items-center gap-3 border-b border-border py-2">
                     <span className="w-20 shrink-0 text-[length:var(--fs-xs)] tracking-wide text-muted uppercase">{t.painel.tipos[u.tipo]}</span>
                     <span className="min-w-0 flex-1 truncate text-text">{u.descricao}</span>
-                    <span className={`num font-medium ${entra ? "text-success" : "text-danger"}`}>
-                      {entra ? "+" : "−"}
-                      {fmt(Math.abs(u.centavos))}
+                    <span className={`num font-medium ${u.centavos === 0 ? "text-muted" : entra ? "text-success" : "text-danger"}`}>
+                      {formatarMovimento(entra ? Math.abs(u.centavos) : -Math.abs(u.centavos), moeda)}
                     </span>
                   </li>
                 );

@@ -14,3 +14,7 @@ supabase/.branches/
 !src/features/importacao/__exemplos__/*.ofx
 extratos/
 importar/
+*.csv
+*.xlsx
+!src/features/importacao/__exemplos__/*.csv
+!src/features/importacao/__exemplos__/*.xlsx

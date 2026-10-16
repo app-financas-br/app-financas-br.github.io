@@ -246,8 +246,35 @@ export const t = {
   importacao: {
     titulo: "Importar extrato",
     abrir: "Importar extrato",
-    escolher: "Escolher arquivo OFX",
-    ajudaArquivo: "Exporte o extrato do seu banco em OFX (Money/Quicken). O arquivo é lido aqui no navegador: não é enviado nem guardado.",
+    escolher: "Escolher arquivo",
+    ajudaArquivo:
+      "Extrato em OFX (Money/Quicken), CSV ou planilha .xlsx. Use o modelo para preencher à mão. O arquivo é lido aqui no navegador: não é enviado nem guardado.",
+    baixarModelo: "Baixar modelo",
+    nomeModelo: "modelo-importacao.xlsx",
+    erroModelo: "Não foi possível gerar o modelo.",
+    planilhaVazia: "A planilha está vazia.",
+    colunas: "Colunas da planilha",
+    ajudaColunas: "Diga em que coluna está cada informação. Use Valor, ou Débito e Crédito quando vierem em colunas separadas.",
+    linhaCabecalho: "Cabeçalho na linha",
+    linhaN: (n: number, conteudo: string) => `${n}: ${conteudo || "(vazia)"}`,
+    campos: {
+      data: "Data",
+      descricao: "Descrição",
+      valor: "Valor",
+      debito: "Débito (saídas)",
+      credito: "Crédito (entradas)",
+      tipo: "Tipo (opcional)",
+      categoria: "Categoria (opcional)",
+    },
+    nenhuma: "—",
+    mapeamentoIncompleto: "Escolha as colunas de Data, Descrição e Valor (ou Débito/Crédito).",
+    resumoPlanilha: (validas: number, ignoradas: number[]) =>
+      `${validas} ${validas === 1 ? "linha válida" : "linhas válidas"}` +
+      (ignoradas.length === 0
+        ? ""
+        : ` · ${ignoradas.length} ${ignoradas.length === 1 ? "ignorada" : "ignoradas"} sem data ou valor (${ignoradas.length === 1 ? "linha" : "linhas"} ${ignoradas.slice(0, 8).join(", ")}${ignoradas.length > 8 ? "…" : ""})`),
+    continuar: "Continuar",
+    criarNova: "Criar uma conta nova",
     lendo: "Lendo arquivo…",
     arquivoInvalido: "Não encontrei transações neste arquivo. Confira se é um OFX.",
     conta: "Conta do extrato",

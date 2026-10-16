@@ -79,9 +79,21 @@ describe("montarItens", () => {
       "debito",
     );
     expect(item).toMatchObject({ par_tabela: "entradas", par_id: "g1", novo_tipo: "gasto", novo_categoria_id: "alim" });
+    expect(item).toMatchObject({ data: "2026-10-10" }); // linha de saída: a própria data
+    expect(item).not.toHaveProperty("data_linha");
     // Sem confirmar, não converte nada
     const [semConfirmar] = montarItens([linha({ tipo: "transferencia", outraContaId: "inter", centavos: -50000, sugestao })], "nu", "debito");
     expect(semConfirmar).not.toHaveProperty("par_id");
+  });
+
+  it("linha de ENTRADA convertida: transferência fica na data da saída (10/10), linha guarda 11/10", () => {
+    const par = { id: "g1", tabela: "gastos_variaveis" as const, contaId: "nu", data: "2026-10-10", centavos: -50000, descricao: "PIX ENVIADO" };
+    const [item] = montarItens(
+      [linha({ data: "2026-10-11", tipo: "transferencia", outraContaId: "nu", centavos: 50000, sugestao: { tipo: "gravado", par, outraContaId: "nu" }, transfConfirmada: true })],
+      "inter",
+      "debito",
+    );
+    expect(item).toMatchObject({ data: "2026-10-10", data_linha: "2026-10-11", conta_origem_id: "nu", conta_destino_id: "inter", novo_tipo: "entrada" });
   });
 
   it("transferência sem a outra conta fica pendente e não é enviada", () => {

@@ -1,14 +1,15 @@
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRightLeft, FileUp, Loader2, Receipt } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Download, FileUp, Loader2, Receipt } from "lucide-react";
 import { Card, CardTitle } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Aviso } from "../../components/ui/Aviso";
 import { useToast } from "../../components/ui/Toast";
-import { decodificarOfx, lerOfx, type ExtratoOfx } from "../../lib/ofx";
-import { categorizar } from "../../lib/categorizar";
-import { formatarMoeda, paraCentavos } from "../../lib/dinheiro";
+import { decodificarOfx, lerOfx, type ExtratoOfx, type TransacaoOfx } from "../../lib/ofx";
+import { aplicarMapeamento, CAMPOS, encontrarCabecalho, lerCsv, mapeamentoCompleto, sugerirMapeamento, type Campo, type Celula, type Mapeamento } from "../../lib/planilha";
+import { categorizar, normalizar } from "../../lib/categorizar";
+import { formatarMovimento, paraCentavos } from "../../lib/dinheiro";
 import { parseData } from "../../lib/datas";
 import { chavesDasLinhas, contaFixaParecida, detectarTransferencias, nomeDoBanco, sugerirTipo } from "../../lib/importacao";
 import { useCategorias, useRegrasCategoria } from "../categorias/useCategorias";
@@ -26,22 +27,26 @@ const select =
 const campo = "h-9 w-full min-w-0 rounded-md border border-border bg-input px-2 text-text outline-none focus:border-border-glow";
 const diaMes = (d: string) => parseData(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
+/** Extrato já lido (OFX ou planilha). Da planilha podem vir tipo e categoria. */
+type Extrato = Omit<ExtratoOfx, "transacoes"> & { transacoes: (TransacaoOfx & { tipo?: TipoLinha | null; categoria?: string | null })[] };
+
 type Etapa =
   | { nome: "arquivo"; erro?: string }
-  | { nome: "conta"; extrato: ExtratoOfx }
-  | { nome: "revisao"; extrato: ExtratoOfx; conta: ContaBancaria }
-  | { nome: "gravando"; extrato: ExtratoOfx; conta: ContaBancaria };
+  | { nome: "mapeamento"; linhas: Celula[][]; cabecalho: number; mapa: Mapeamento }
+  | { nome: "conta"; extrato: Extrato }
+  | { nome: "revisao"; extrato: Extrato; conta: ContaBancaria }
+  | { nome: "gravando"; extrato: Extrato; conta: ContaBancaria };
 
 export function Importacao() {
   const [etapa, setEtapa] = useState<Etapa>({ nome: "arquivo" });
   const [linhas, setLinhas] = useState<LinhaRevisao[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [contaEscolhida, setContaEscolhida] = useState<string>(NOVA);
+  const [nomeNova, setNomeNova] = useState("");
   const entradaArquivo = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
   const { mostrar } = useToast();
   const { prefs } = usePreferencias();
-  const fmt = (c: number) => formatarMoeda(c, prefs.moeda);
   const { data: contas = [] } = useContasBancarias();
   const { data: categorias = [] } = useCategorias();
   const { data: regras = [] } = useRegrasCategoria();
@@ -59,16 +64,29 @@ export function Importacao() {
         ? categorizar(descricao, { categorias: catGasto, regras })
         : null;
 
-  // 1) Arquivo → extrato
+  const irParaConta = (extrato: Extrato) => {
+    setContaEscolhida(NOVA);
+    setNomeNova(nomeLivre(nomeDoBanco(extrato.banco) ?? t.contas.novaNome, contas.map((c) => c.nome)));
+    setEtapa({ nome: "conta", extrato });
+  };
+
+  // 1) Arquivo → extrato (OFX) ou linhas da planilha (CSV/XLSX → mapeamento de colunas)
   const lerArquivo = async (arquivo: File) => {
     setCarregando(true);
     try {
-      const extrato = lerOfx(decodificarOfx(new Uint8Array(await arquivo.arrayBuffer())));
+      const bytes = await arquivo.arrayBuffer();
+      const ext = arquivo.name.toLowerCase().split(".").pop();
+      if (ext === "csv" || ext === "txt" || ext === "xlsx") {
+        const linhasPlanilha = ext === "xlsx" ? await (await import("./xlsx")).lerXlsx(bytes) : lerCsv(decodificarOfx(new Uint8Array(bytes)));
+        if (linhasPlanilha.length < 2) return setEtapa({ nome: "arquivo", erro: t.importacao.planilhaVazia });
+        const cabecalho = encontrarCabecalho(linhasPlanilha);
+        return setEtapa({ nome: "mapeamento", linhas: linhasPlanilha, cabecalho, mapa: sugerirMapeamento(linhasPlanilha[cabecalho] ?? []) });
+      }
+      const extrato = lerOfx(decodificarOfx(new Uint8Array(bytes)));
       if (extrato.transacoes.length === 0) return setEtapa({ nome: "arquivo", erro: t.importacao.arquivoInvalido });
       const conhecida = contas.find((c) => c.ofx_conta && c.ofx_conta === extrato.conta && (c.ofx_banco ?? "") === (extrato.banco ?? ""));
       if (conhecida) return await prepararRevisao(extrato, conhecida);
-      setContaEscolhida(NOVA);
-      setEtapa({ nome: "conta", extrato });
+      irParaConta(extrato);
     } catch (e) {
       console.error("[importacao] ler", e);
       setEtapa({ nome: "arquivo", erro: t.importacao.arquivoInvalido });
@@ -79,7 +97,7 @@ export function Importacao() {
   };
 
   // 2) Conta escolhida (ou criada) → contexto do banco → linhas da pré-visualização
-  const prepararRevisao = async (extrato: ExtratoOfx, conta: ContaBancaria) => {
+  const prepararRevisao = async (extrato: Extrato, conta: ContaBancaria) => {
     setCarregando(true);
     try {
       if (extrato.conta && !conta.ofx_conta) {
@@ -97,7 +115,11 @@ export function Importacao() {
         tr.map((x, i) => {
           const sugestao = sugestoes.get(String(i)) ?? null;
           const repetida = ctx.chavesExistentes.has(chaves[i]!);
-          const tipo = sugerirTipo(x);
+          const tipo = x.tipo ?? sugerirTipo(x);
+          // Categoria escrita na planilha: casa pelo nome (sem acento/maiúscula) entre as do tipo
+          const daPlanilha = x.categoria
+            ? (tipo === "investimento" ? catInvest : catGasto).find((c) => normalizar(c.nome) === normalizar(x.categoria!))?.id
+            : undefined;
           return {
             id: String(i),
             chave: chaves[i]!,
@@ -107,7 +129,7 @@ export function Importacao() {
             repetida,
             incluir: !repetida && sugestao?.tipo !== "ja_registrada",
             tipo,
-            categoriaId: categoriaPara(tipo, x.descricao),
+            categoriaId: daPlanilha ?? categoriaPara(tipo, x.descricao),
             outraContaId: sugestao && sugestao.tipo !== "ja_registrada" ? sugestao.outraContaId : null,
             sugestao,
             transfConfirmada: false,
@@ -125,7 +147,7 @@ export function Importacao() {
     }
   };
 
-  const continuarConta = (extrato: ExtratoOfx) => {
+  const continuarConta = (extrato: Extrato) => {
     if (contaEscolhida !== NOVA) {
       const c = contas.find((x) => x.id === contaEscolhida);
       if (c) void prepararRevisao(extrato, c);
@@ -134,7 +156,7 @@ export function Importacao() {
     const banco = nomeDoBanco(extrato.banco) ?? "";
     criarConta.mutate(
       {
-        nome: nomeLivre(banco || t.contas.novaNome, contas.map((c) => c.nome)),
+        nome: nomeNova.trim() || nomeLivre(banco || t.contas.novaNome, contas.map((c) => c.nome)),
         banco,
         tipo: extrato.tipoConta === "cartao" ? "cartao_credito" : "corrente",
         cor: corLivre(contas.map((c) => c.cor)),
@@ -145,7 +167,7 @@ export function Importacao() {
         onSuccess: (c) => void prepararRevisao(extrato, c),
         onError: (e) => {
           console.error("[importacao] criar conta", e);
-          mostrar({ tipo: "erro", texto: t.lanc.erroSalvar });
+          mostrar({ tipo: "erro", texto: (e as { code?: string }).code === "23505" ? t.contas.nomeRepetido : t.lanc.erroSalvar });
         },
       },
     );
@@ -155,7 +177,7 @@ export function Importacao() {
     setLinhas((ls) => ls.map((l) => (l.id === id ? { ...l, ...campos } : l)));
 
   // 3) Confirmar → RPC única
-  const confirmar = async (extrato: ExtratoOfx, conta: ContaBancaria) => {
+  const confirmar = async (extrato: Extrato, conta: ContaBancaria) => {
     const itens = montarItens(linhas, conta.id, conta.tipo === "cartao_credito" ? "credito" : "debito");
     setEtapa({ nome: "gravando", extrato, conta });
     try {
@@ -199,6 +221,20 @@ export function Importacao() {
 
   // ---------------------------------------------------------------- telas
   if (etapa.nome === "arquivo") {
+    const baixarModelo = async () => {
+      try {
+        const buf = await (await import("./xlsx")).gerarModeloXlsx();
+        const url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = t.importacao.nomeModelo;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (e) {
+        console.error("[importacao] modelo", e);
+        mostrar({ tipo: "erro", texto: t.importacao.erroModelo });
+      }
+    };
     return (
       <div className="flex flex-col gap-[var(--gap-grid)]">
         {voltar}
@@ -206,12 +242,94 @@ export function Importacao() {
           <CardTitle>{t.importacao.titulo}</CardTitle>
           <p className="text-muted">{t.importacao.ajudaArquivo}</p>
           {etapa.erro && <Aviso tipo="erro">{etapa.erro}</Aviso>}
-          <input ref={entradaArquivo} type="file" accept=".ofx,.qfx" className="sr-only" id="arquivo-ofx"
+          <input ref={entradaArquivo} type="file" accept=".ofx,.qfx,.csv,.txt,.xlsx" className="sr-only" id="arquivo-extrato"
             onChange={(e) => e.target.files?.[0] && void lerArquivo(e.target.files[0])} />
-          <Button onClick={() => entradaArquivo.current?.click()} disabled={carregando}>
-            {carregando ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <FileUp size={18} aria-hidden />}
-            {carregando ? t.importacao.lendo : t.importacao.escolher}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => entradaArquivo.current?.click()} disabled={carregando}>
+              {carregando ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <FileUp size={18} aria-hidden />}
+              {carregando ? t.importacao.lendo : t.importacao.escolher}
+            </Button>
+            <Button variante="fantasma" onClick={() => void baixarModelo()}>
+              <Download size={18} aria-hidden /> {t.importacao.baixarModelo}
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (etapa.nome === "mapeamento") {
+    const { linhas: celulas, cabecalho, mapa } = etapa;
+    const cab = celulas[cabecalho] ?? [];
+    const colunas = Math.max(0, ...celulas.slice(cabecalho, cabecalho + 50).map((l) => l.length));
+    const textoCelula = (c: Celula | undefined) => (c instanceof Date ? c.toISOString().slice(0, 10) : c === null || c === undefined ? "" : String(c));
+    const letra = (i: number) => (i < 26 ? String.fromCharCode(65 + i) : `C${i + 1}`);
+    const resultado = mapeamentoCompleto(mapa) ? aplicarMapeamento(celulas, cabecalho, mapa) : null;
+    const mudarCampo = (campo: Campo, valor: string) => {
+      const novo: Mapeamento = { ...mapa };
+      if (valor === "") delete novo[campo];
+      else novo[campo] = Number(valor);
+      setEtapa({ ...etapa, mapa: novo });
+    };
+    return (
+      <div className="flex flex-col gap-[var(--gap-grid)]">
+        {voltar}
+        <Card className="flex flex-col gap-4">
+          <CardTitle>{t.importacao.colunas}</CardTitle>
+          <p className="text-muted">{t.importacao.ajudaColunas}</p>
+          <label className="flex flex-col gap-1.5 text-[length:var(--fs-sm)] text-muted">
+            {t.importacao.linhaCabecalho}
+            <select className={select} value={cabecalho}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                setEtapa({ ...etapa, cabecalho: n, mapa: sugerirMapeamento(celulas[n] ?? []) });
+              }}>
+              {celulas.slice(0, 20).map((l, i) => (
+                <option key={i} value={i}>{t.importacao.linhaN(i + 1, l.map(textoCelula).filter(Boolean).join(" | ").slice(0, 60))}</option>
+              ))}
+            </select>
+          </label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {CAMPOS.map((campo) => (
+              <label key={campo} className="flex flex-col gap-1.5 text-[length:var(--fs-sm)] text-muted">
+                {t.importacao.campos[campo]}
+                <select className={select} value={mapa[campo] ?? ""} onChange={(e) => mudarCampo(campo, e.target.value)}>
+                  <option value="">{t.importacao.nenhuma}</option>
+                  {Array.from({ length: colunas }, (_, i) => (
+                    <option key={i} value={i}>{`${letra(i)}: ${textoCelula(cab[i]) || "—"}`.slice(0, 40)}</option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+
+          {!resultado ? (
+            <Aviso tipo="erro">{t.importacao.mapeamentoIncompleto}</Aviso>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <p role="status" className="text-muted">
+                {t.importacao.resumoPlanilha(resultado.transacoes.length, resultado.ignoradas)}
+              </p>
+              <ul className="flex flex-col">
+                {resultado.transacoes.slice(0, 5).map((x, i) => (
+                  <li key={i} className="flex items-center gap-2 border-b border-border py-1.5 text-[length:var(--fs-sm)] last:border-b-0">
+                    <span className="num w-12 shrink-0 text-muted">{diaMes(x.data)}</span>
+                    <span className="min-w-0 flex-1 truncate text-text">{x.descricao}</span>
+                    <span className={`num whitespace-nowrap ${x.centavos > 0 ? "text-success" : "text-danger"}`}>{formatarMovimento(x.centavos, prefs.moeda)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              disabled={!resultado || resultado.transacoes.length === 0}
+              onClick={() => resultado && irParaConta({ tipoConta: "banco", banco: null, conta: null, transacoes: resultado.transacoes })}
+            >
+              {t.importacao.continuar}
+            </Button>
+            <Button variante="fantasma" onClick={() => setEtapa({ nome: "arquivo" })}>{t.importacao.outroArquivo}</Button>
+          </div>
         </Card>
       </div>
     );
@@ -227,13 +345,19 @@ export function Importacao() {
           <CardTitle>{t.importacao.conta}</CardTitle>
           {extrato.conta && <p className="text-muted">{t.importacao.contaDetectada(banco ?? extrato.banco ?? "?", extrato.conta)}</p>}
           <select aria-label={t.importacao.escolhaConta} className={`${select} h-11 max-w-sm`} value={contaEscolhida} onChange={(e) => setContaEscolhida(e.target.value)}>
-            <option value={NOVA}>{t.importacao.criarConta(banco ?? t.contas.novaNome)}</option>
+            <option value={NOVA}>{t.importacao.criarNova}</option>
             {contas.filter((c) => c.ativa).map((c) => (
               <option key={c.id} value={c.id}>{c.nome}</option>
             ))}
           </select>
+          {contaEscolhida === NOVA && (
+            <label className="flex max-w-sm flex-col gap-1.5 text-[length:var(--fs-sm)] text-muted">
+              {t.contas.nome}
+              <input className={`${campo} h-11`} value={nomeNova} maxLength={40} onChange={(e) => setNomeNova(e.target.value)} />
+            </label>
+          )}
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => continuarConta(extrato)} disabled={carregando || criarConta.isPending}>
+            <Button onClick={() => continuarConta(extrato)} disabled={carregando || criarConta.isPending || (contaEscolhida === NOVA && !nomeNova.trim())}>
               {(carregando || criarConta.isPending) && <Loader2 size={18} className="animate-spin" aria-hidden />}
               {t.importacao.importar}
             </Button>
@@ -243,6 +367,7 @@ export function Importacao() {
       </div>
     );
   }
+
 
   const { extrato, conta } = etapa;
   const gravando = etapa.nome === "gravando";
@@ -313,8 +438,8 @@ export function Importacao() {
                     </select>
                   )}
                 </div>
-                <span className={`num text-right font-medium whitespace-nowrap ${l.centavos >= 0 ? "text-success" : "text-danger"}`}>
-                  {l.centavos >= 0 ? "+" : "−"}{fmt(Math.abs(l.centavos))}
+                <span className={`num text-right font-medium whitespace-nowrap ${l.centavos === 0 ? "text-muted" : l.centavos > 0 ? "text-success" : "text-danger"}`}>
+                  {formatarMovimento(l.centavos, prefs.moeda)}
                 </span>
 
                 {/* Avisos e sugestões da linha */}

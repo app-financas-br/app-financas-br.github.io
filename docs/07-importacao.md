@@ -35,6 +35,8 @@ Cada etapa fecha com build + testes + navegador em 375 px. Para testar com extra
   - `DTPOSTED` `20261016120000[-3:BRT]` → usa só AAAAMMDD, para não deslocar o dia por fuso.
   - `TRNAMT` aceita `-52.90` e `-52,90`.
 - **Datas e valores** (B2+): dd/mm/aaaa, dd/mm/aa, aaaa-mm-dd; vírgula decimal, milhar com ponto, sinal negativo, "R$", ou colunas separadas de débito/crédito.
+- **Planilha (B2)**: CSV (separador ; , ou tab detectado, aspas, latin-1 ou UTF-8) e .xlsx (exceljs carregado só ao abrir uma planilha). O app acha a linha do cabeçalho e sugere as colunas pelo nome (Data, Histórico/Descrição, Valor ou Débito+Crédito, Tipo, Categoria); dá para trocar cada uma. Linhas sem data ou valor (saldo, total) são listadas como ignoradas. Com a coluna Tipo, o tipo manda no sinal: gasto, conta fixa e aporte saem; entrada e resgate entram; em Transferência vale o sinal da planilha. Categoria escrita na planilha casa pelo nome.
+- **Modelo do app** (.xlsx): a aba "Lançamentos" só tem o cabeçalho (é a que o app lê). Os exemplos ficam na aba "Como preencher" e nunca são importados.
 
 ## Pré-visualização
 
@@ -57,6 +59,7 @@ Cada etapa fecha com build + testes + navegador em 375 px. Para testar com extra
   2. já gravada, importada de outra conta (entrada ou gasto com `origem = 'importado'`);
   3. já registrada como transferência. Nesse caso a linha é marcada "já registrada" e pulada.
 - Na pré-visualização, o par aparece como sugestão: "Transferência Nubank → Inter". Você confirma ou recusa linha a linha.
+- **Data da transferência** = data da ponta de **saída** (Pix enviado em 10/10 e recebido em 11/10 → transferência em 10/10). No "Desfazer", a linha do extrato volta com a data dela.
 - Confirmada, vira uma linha em `transferencias`, fora de entradas e gastos (não mexe no Disponível nem no Planejamento).
 - Se a outra ponta já estava gravada como entrada ou gasto, ela é **convertida**: sai de entradas/gastos e vira a transferência com o **mesmo id e os mesmos dados** (as transferências têm tabela própria). A linha original fica guardada em `convertido_de`. A pré-visualização mostra o que vai mudar ("Gasto \"PIX ENVIADO\" de 10/10 no Nubank → vira transferência Nubank → Inter"). Depois de gravar, um toast oferece "Desfazer" (`desfazer_conversao`): o lançamento original volta igual e a linha nova do extrato entra como entrada ou gasto comum.
 - Você também pode marcar uma linha como transferência à mão e escolher a outra conta.

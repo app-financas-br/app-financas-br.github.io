@@ -63,6 +63,11 @@ export function montarItens(linhas: LinhaRevisao[], contaId: string, formaPagame
       };
       const s = l.sugestao;
       if (l.transfConfirmada && s?.tipo === "gravado" && s.par.contaId === l.outraContaId) {
+        // Data da transferência = data da ponta de SAÍDA; a da linha fica guardada para o Desfazer
+        if (!sai) {
+          item.data = s.par.data;
+          item.data_linha = l.data;
+        }
         item.par_tabela = s.par.tabela;
         item.par_id = s.par.id;
         item.novo_tipo = sai ? "gasto" : "entrada";
