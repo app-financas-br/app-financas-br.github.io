@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatarData, hoje, mesAnterior, parseData, periodoAtual, proximoMes, ultimoDiaDoMes } from "./datas";
+import { dataPadrao, formatarData, hoje, mesAnterior, parseData, periodoAtual, proximoMes, ultimoDiaDoMes } from "./datas";
 
 describe("datas", () => {
   it("hoje usa o fuso local, mesmo às 23h30", () => {
@@ -30,6 +30,12 @@ describe("datas", () => {
     expect(proximoMes({ ano: 2026, mes: 5 })).toEqual({ ano: 2026, mes: 6 });
     expect(mesAnterior({ ano: 2026, mes: 1 })).toEqual({ ano: 2025, mes: 12 });
     expect(mesAnterior({ ano: 2026, mes: 7 })).toEqual({ ano: 2026, mes: 6 });
+  });
+
+  it("data padrão: hoje no mês atual, dia 1 em outros meses", () => {
+    const agora = new Date(2026, 9, 16, 23, 30);
+    expect(dataPadrao({ ano: 2026, mes: 10 }, agora)).toBe("2026-10-16");
+    expect(dataPadrao({ ano: 2027, mes: 1 }, agora)).toBe("2027-01-01");
   });
 
   it("período atual tem mês de 1 a 12", () => {

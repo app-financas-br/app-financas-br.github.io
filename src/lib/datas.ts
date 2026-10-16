@@ -49,3 +49,9 @@ export function mesAnterior({ ano, mes }: Periodo): Periodo {
 export function mesmoPeriodo(a: Periodo, b: Periodo): boolean {
   return a.ano === b.ano && a.mes === b.mes;
 }
+
+/** Data sugerida para um lançamento novo: hoje se o período é o mês atual; senão, dia 1 do período. */
+export function dataPadrao(periodo: Periodo, agora: Date = new Date()): string {
+  if (mesmoPeriodo(periodo, periodoAtual(agora))) return hoje(agora);
+  return `${periodo.ano}-${dois(periodo.mes)}-01`;
+}
