@@ -1,0 +1,92 @@
+/* =====================================================================
+   Design tokens — tema escuro "neon fintech"
+   Cores amostradas da imagem de referência (referencias/design-referencia.jpg).
+   Use SEMPRE estas variáveis; nada de cor solta nos componentes.
+   ===================================================================== */
+
+:root {
+  /* Superfícies */
+  --bg-app:        #020c16;  /* fundo da página */
+  --bg-sidebar:    #010b15;
+  --bg-card:       #06121e;  /* cards */
+  --bg-card-hover: #0a1826;
+  --bg-input:      #0b1724;
+  --bg-elevated:   #0e1c2b;  /* tooltips, menus, modais */
+
+  /* Bordas */
+  --border:        #13202d;
+  --border-strong: #1d2d3d;
+  --border-glow:   rgba(42, 255, 189, 0.35);
+
+  /* Texto */
+  --text:          #e8eef5;
+  --text-muted:    #8b95a5;
+  --text-faint:    #5b6676;
+
+  /* Marca / acento principal (verde-menta neon) */
+  --primary:        #2affbd;
+  --primary-strong: #10d9a0;
+  --primary-soft:   rgba(42, 255, 189, 0.12);
+  --primary-text:   #5aefcf;
+
+  /* Semânticas */
+  --success:  #22d39a;   /* entradas, variação positiva, pago */
+  --danger:   #e5484d;   /* saídas, variação negativa, atrasado */
+  --warning:  #ffa31c;   /* a receber, pendente, vence em breve */
+  --info:     #2f8fe8;
+
+  /* Paleta de séries (gráficos, categorias) — nesta ordem */
+  --chart-1: #2affbd;  /* verde */
+  --chart-2: #ffa31c;  /* laranja */
+  --chart-3: #2f8fe8;  /* azul */
+  --chart-4: #a26ad5;  /* roxo */
+  --chart-5: #22d3ee;  /* ciano */
+  --chart-6: #f2d85d;  /* amarelo */
+  --chart-7: #64748b;  /* cinza (Outros) */
+  --chart-grid: rgba(139, 149, 165, 0.12);
+
+  /* Gauge (vermelho -> amarelo -> verde) */
+  --gauge-low:  #e5484d;
+  --gauge-mid:  #f2d85d;
+  --gauge-high: #22d39a;
+
+  /* Raio, sombra, brilho */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 12px 32px -18px rgba(0, 0, 0, 0.8);
+  --glow-primary: 0 0 0 1px var(--border-glow), 0 0 24px -4px rgba(42, 255, 189, 0.35);
+
+  /* Tipografia */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-num:  "Inter", system-ui, sans-serif; /* com font-variant-numeric: tabular-nums */
+  --fs-xs: 11px;   /* rótulos de eixo, legendas */
+  --fs-sm: 12px;   /* títulos de card (CAIXA ALTA, letter-spacing .04em) */
+  --fs-md: 14px;   /* texto padrão */
+  --fs-lg: 18px;
+  --fs-xl: 24px;   /* título da página */
+  --fs-kpi: 28px;  /* números dos KPIs */
+
+  /* Espaçamento (múltiplos de 4) */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px;
+
+  /* Layout */
+  --sidebar-w: 176px;
+  --gap-grid: 16px;
+}
+
+/* Tema claro opcional (secundário: o padrão do app é o escuro) */
+:root[data-theme="light"] {
+  --bg-app: #f4f6f9; --bg-sidebar: #ffffff; --bg-card: #ffffff; --bg-card-hover: #f8fafc;
+  --bg-input: #f1f5f9; --bg-elevated: #ffffff;
+  --border: #e5e9f0; --border-strong: #d5dbe5;
+  --text: #0f172a; --text-muted: #5b6676; --text-faint: #94a3b8;
+  --primary: #0fbf8c; --primary-strong: #0aa77a; --primary-soft: rgba(15, 191, 140, 0.12); --primary-text: #078a65;
+  --chart-grid: rgba(15, 23, 42, 0.08);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05), 0 12px 28px -20px rgba(16, 24, 40, 0.25);
+}
+
+html, body { background: var(--bg-app); color: var(--text); font-family: var(--font-sans); }
+.num { font-variant-numeric: tabular-nums; }

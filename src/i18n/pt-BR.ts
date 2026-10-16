@@ -1,0 +1,105 @@
+// Textos da interface. Centralizados para permitir en/es depois.
+export const t = {
+  app: { nome: "Finanças" },
+
+  meses: [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  ],
+  mesesCurtos: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
+
+  nav: {
+    dashboard: "Dashboard",
+    inicio: "Início",
+    lancamentos: "Lançamentos",
+    investimentos: "Investimentos",
+    metas: "Metas",
+    tarefas: "Tarefas",
+    relatorios: "Relatórios",
+    configuracoes: "Configurações",
+    principal: "Navegação principal",
+  },
+
+  topbar: {
+    mesAnterior: "Mês anterior",
+    proximoMes: "Próximo mês",
+    escolherMes: "Escolher mês e ano",
+    anoAnterior: "Ano anterior",
+    proximoAno: "Próximo ano",
+    irParaHoje: "Ir para o mês atual",
+    avisos: "Contas a vencer",
+    menuConta: "Menu da conta",
+    sair: "Sair",
+  },
+
+  voz: {
+    titulo: "Assistente de voz",
+    frase: "Fale um gasto",
+    gravar: "Gravar",
+    emBreve: "Chega na Fase 2",
+  },
+
+  auth: {
+    email: "E-mail",
+    senha: "Senha",
+    confirmarSenha: "Confirmar senha",
+    novaSenha: "Nova senha",
+    entrar: "Entrar",
+    entrando: "Entrando…",
+    criarConta: "Criar conta",
+    criando: "Criando…",
+    enviar: "Enviar link",
+    enviando: "Enviando…",
+    salvar: "Salvar nova senha",
+    salvando: "Salvando…",
+    tituloLogin: "Entrar na sua conta",
+    subtituloLogin: "Sua planilha do mês, com voz e tarefas.",
+    tituloCadastro: "Criar conta",
+    subtituloCadastro: "Leva menos de um minuto.",
+    tituloEsqueci: "Recuperar senha",
+    subtituloEsqueci: "Enviamos um link para você criar uma senha nova.",
+    tituloNovaSenha: "Criar nova senha",
+    subtituloNovaSenha: "Escolha uma senha com pelo menos 8 caracteres.",
+    esqueciSenha: "Esqueci a senha",
+    naoTemConta: "Não tem conta?",
+    jaTemConta: "Já tem conta?",
+    voltarLogin: "Voltar para o login",
+    mostrarSenha: "Mostrar senha",
+    ocultarSenha: "Ocultar senha",
+    senhaCurta: "A senha precisa ter pelo menos 8 caracteres.",
+    senhasDiferentes: "As senhas não são iguais.",
+    confiraEmail: "Conta criada! Confira seu e-mail e clique no link para ativar.",
+    linkEnviado: "Se este e-mail tiver conta, o link chega em instantes. Confira também o spam.",
+    senhaAlterada: "Senha alterada. Você já está dentro.",
+    recursos: ["Planilha mensal", "Lançar por voz", "Metas e investimentos", "Seus dados protegidos"],
+  },
+
+  erros: {
+    credenciais: "E-mail ou senha incorretos.",
+    jaCadastrado: "Este e-mail já tem conta. Tente entrar.",
+    emailNaoConfirmado: "Confirme seu e-mail antes de entrar (veja a caixa de entrada).",
+    muitasTentativas: "Muitas tentativas. Espere um pouco e tente de novo.",
+    cadastroDesligado: "Novos cadastros estão desligados neste app.",
+    senhaFraca: "Senha fraca. Use pelo menos 8 caracteres.",
+    mesmaSenha: "A nova senha precisa ser diferente da atual.",
+    semConexao: "Sem conexão. Verifique a internet.",
+    generico: "Algo deu errado. Tente de novo.",
+  },
+
+  dashboard: {
+    boasVindas: "Tudo pronto para começar",
+    resumo: "A planilha do mês chega na Fase 1. Por enquanto, confira suas categorias padrão:",
+    categoriasGasto: "Categorias de gasto",
+    categoriasInvest: "Categorias de investimento",
+    semCategorias: "Nenhuma categoria encontrada.",
+    erroCategorias: "Não foi possível carregar as categorias.",
+    tentarDeNovo: "Tentar de novo",
+  },
+
+  emBreve: {
+    titulo: "Em construção",
+    texto: (fase: number) => `Esta tela chega na Fase ${fase}.`,
+  },
+
+  carregando: "Carregando…",
+} as const;
