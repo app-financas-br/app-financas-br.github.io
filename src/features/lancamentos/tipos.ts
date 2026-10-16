@@ -36,7 +36,7 @@ export type Gasto = Base &
     observacao: string | null;
   };
 
-export type Investimento = Base & { data: string | null; categoria_id: string | null; destino: string | null };
+export type Investimento = Base & { data: string | null; categoria_id: string | null; destino: string | null; conta_bancaria_id?: string | null };
 
 export type Lancamento = Entrada | ContaFixa | Gasto;
 

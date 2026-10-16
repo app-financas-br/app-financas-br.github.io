@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import type { Periodo } from "../../lib/datas";
 import { useToast } from "../../components/ui/Toast";
 import { t } from "../../i18n/pt-BR";
-import type { Tabela, TabelaMensal } from "./tipos";
+import type { TabelaMensal } from "./tipos";
 
 type ComId = { id: string };
 
@@ -13,6 +13,7 @@ const chave = (tabela: TabelaMensal, { ano, mes }: Periodo) => [tabela, ano, mes
 function invalidarDerivados(qc: QueryClient) {
   qc.invalidateQueries({ queryKey: ["resumo"] });
   qc.invalidateQueries({ queryKey: ["saldos_contas"] });
+  qc.invalidateQueries({ queryKey: ["investimentos", "todos"] });
 }
 
 /** Lançamentos de uma tabela no mês/ano selecionado (sempre filtra ano E mes). */
@@ -32,7 +33,7 @@ export function useLancamentos<T extends ComId>(tabela: TabelaMensal, periodo: P
   });
 }
 
-export function useCriarLancamento<T extends ComId>(tabela: Tabela, periodo: Periodo) {
+export function useCriarLancamento<T extends ComId>(tabela: TabelaMensal, periodo: Periodo) {
   const qc = useQueryClient();
   const { mostrar } = useToast();
   return useMutation({
@@ -58,7 +59,7 @@ export function useCriarLancamento<T extends ComId>(tabela: Tabela, periodo: Per
 }
 
 /** Edição otimista: atualiza a tela, grava no banco e desfaz (com aviso) se falhar. */
-export function useAtualizarLancamento<T extends ComId>(tabela: Tabela, periodo: Periodo) {
+export function useAtualizarLancamento<T extends ComId>(tabela: TabelaMensal, periodo: Periodo) {
   const qc = useQueryClient();
   const { mostrar } = useToast();
   const k = chave(tabela, periodo);
@@ -90,7 +91,7 @@ export type EscopoParcelas = { grupo: string; aPartirDe: number };
  * Exclusão com "Desfazer": some da tela na hora e só apaga no banco depois de 5 s.
  * Se a pessoa desfizer, o item volta; se o banco recusar, o item volta com aviso.
  */
-export function useExcluirComDesfazer<T extends ComId>(tabela: Tabela, periodo: Periodo) {
+export function useExcluirComDesfazer<T extends ComId>(tabela: TabelaMensal, periodo: Periodo) {
   const qc = useQueryClient();
   const { mostrar } = useToast();
   const k = chave(tabela, periodo);
