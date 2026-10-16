@@ -14,11 +14,34 @@ import {
   useCriarCategoria,
   type Categoria,
 } from "./useCategorias";
+import { useGrupos, type GrupoPlanejamento } from "../planejamento/api";
 import { t } from "../../i18n/pt-BR";
 
+/** Grupo do planejamento a que a categoria pertence ("Sem grupo" = fica fora do previsto × realizado). */
+function SelectGrupo({ categoria, grupos, onSalvar }: { categoria: Categoria; grupos: GrupoPlanejamento[]; onSalvar: (id: string | null) => void }) {
+  const atual = grupos.find((g) => g.id === categoria.grupo_id);
+  return (
+    <div className="relative flex h-9 w-28 shrink-0 items-center rounded-md hover:bg-card-hover sm:w-44">
+      <span aria-hidden className="ml-2 h-2 w-2 shrink-0 rounded-sm" style={{ background: atual?.cor ?? "var(--border-strong)" }} />
+      <select
+        aria-label={t.categorias.grupo(categoria.nome)}
+        value={atual?.id ?? ""}
+        onChange={(e) => onSalvar(e.target.value || null)}
+        className="h-9 w-full cursor-pointer appearance-none truncate bg-transparent pr-1 pl-2 text-[length:var(--fs-sm)] text-muted outline-none [&>option]:bg-elevated"
+      >
+        <option value="">{t.categorias.semGrupo}</option>
+        {grupos.map((g) => (
+          <option key={g.id} value={g.id}>
+            {g.nome}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 /** Seletor de cor: o arrastar do seletor gera muitos eventos, então grava após uma pausa. */
-function CorCategoria({ cor, nome, onSalvar }: { cor: string; nome: string; onSalvar: (cor: string) => void }) {
+export function CorCategoria({ cor, nome, onSalvar }: { cor: string; nome: string; onSalvar: (cor: string) => void }) {
   const [local, setLocal] = useState(cor);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => setLocal(cor), [cor]);
@@ -44,6 +67,7 @@ function Grupo({ tipo, categorias }: { tipo: Categoria["tipo"]; categorias: Cate
   const { mostrar } = useToast();
   const atualizar = useAtualizarCategoria();
   const criar = useCriarCategoria();
+  const { data: grupos = [] } = useGrupos();
   const [novoId, setNovoId] = useState<string | null>(null);
 
   const doTipo = categorias.filter((c) => c.tipo === tipo).sort((a, b) => a.ordem - b.ordem);
@@ -107,6 +131,7 @@ function Grupo({ tipo, categorias }: { tipo: Categoria["tipo"]; categorias: Cate
                 />
               )}
             </div>
+            <SelectGrupo categoria={c} grupos={grupos} onSalvar={(grupo_id) => salvar(c.id, { grupo_id })} />
             {c.palavras.length > 0 && (
               <span className="hidden text-[length:var(--fs-xs)] text-faint sm:inline" title={c.palavras.join(", ")}>
                 {t.categorias.palavras(c.palavras.length)}

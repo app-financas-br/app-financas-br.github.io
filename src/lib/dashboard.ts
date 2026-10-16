@@ -41,7 +41,19 @@ export function porCategoria(itens: { valor: Valor; categoria_id: string | null 
     .sort((a, b) => b.centavos - a.centavos);
 }
 
-export type ContaAVencer = { id: string; descricao: string; valor: Valor; vencimento: string; diasAte: number; atrasada: boolean };
+/**
+ * Junta as fatias menores que `limitePct`% do total em "Outras" (rótulos não se sobrepõem).
+ * Uma única fatia pequena fica com o próprio nome — juntar uma só esconderia a categoria à toa.
+ */
+export function agruparPequenas(fatias: FatiaCategoria[], limitePct = 3): { fatias: FatiaCategoria[]; outras: FatiaCategoria[] } {
+  const total = fatias.reduce((s, f) => s + f.centavos, 0);
+  const pequena = (f: FatiaCategoria) => f.centavos * 100 < total * limitePct;
+  const outras = fatias.filter(pequena);
+  if (outras.length < 2) return { fatias, outras: [] };
+  return { fatias: fatias.filter((f) => !pequena(f)), outras };
+}
+
+export type ContaAVencer ={ id: string; descricao: string; valor: Valor; vencimento: string; diasAte: number; atrasada: boolean };
 
 /** Contas não pagas atrasadas ou que vencem nos próximos `janela` dias (mais urgentes primeiro). */
 export function contasAVencer(

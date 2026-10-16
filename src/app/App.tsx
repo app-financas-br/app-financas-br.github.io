@@ -8,6 +8,7 @@ import { EsqueciSenha } from "../features/auth/EsqueciSenha";
 import { NovaSenha } from "../features/auth/NovaSenha";
 import { Dashboard } from "../features/dashboard/Dashboard";
 import { Lancamentos } from "../features/lancamentos/Lancamentos";
+import { Planejamento } from "../features/planejamento/Planejamento";
 import { Configuracoes } from "../features/configuracoes/Configuracoes";
 import { EmBreve } from "../components/ui/EmBreve";
 import { t } from "../i18n/pt-BR";
@@ -50,9 +51,10 @@ function Rotas() {
       <Route element={<Protegida />}>
         <Route element={<AppLayout />}>
           <Route index element={<Dashboard />} />
+          <Route path="/planejamento" element={<Planejamento />} />
           <Route path="/lancamentos" element={<Lancamentos />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
-          {NAVEGACAO.filter((i) => !["/", "/lancamentos", "/configuracoes"].includes(i.rota)).map((i) => (
+          {NAVEGACAO.filter((i) => !["/", "/planejamento", "/lancamentos", "/configuracoes"].includes(i.rota)).map((i) => (
             <Route key={i.rota} path={i.rota} element={<EmBreve fase={i.fase} />} />
           ))}
         </Route>

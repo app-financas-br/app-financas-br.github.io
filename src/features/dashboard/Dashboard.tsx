@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import {
   AlertTriangle,
@@ -24,9 +24,11 @@ import { usePeriodo } from "../../app/providers/PeriodoProvider";
 import { useCategorias } from "../categorias/useCategorias";
 import { formatarMoeda, formatarPercentual, paraCentavos, type Moeda } from "../../lib/dinheiro";
 import { rotuloSaude, saudeMes, variacaoPercentual } from "../../lib/calculos";
-import { acumuladoDiario, ateHoje, contasAVencer, diaNoPeriodo, porCategoria, ultimosLancamentos } from "../../lib/dashboard";
+import { acumuladoDiario, agruparPequenas, ateHoje, contasAVencer, diaNoPeriodo, porCategoria, ultimosLancamentos } from "../../lib/dashboard";
 import { hoje as hojeLocal, parseData } from "../../lib/datas";
 import { useDadosDashboard } from "./useDadosDashboard";
+import { CardPlanejamento } from "./CardPlanejamento";
+import { Modal } from "../../components/ui/Modal";
 import { t } from "../../i18n/pt-BR";
 
 const compacto = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
@@ -101,6 +103,9 @@ export function Dashboard() {
   const periodo = { ano, mes };
   const { prefs, atual, anterior, aVencer, recentes, conferidoComBanco } = useDadosDashboard(periodo);
   const { data: categorias = [] } = useCategorias();
+  // Fatia da rosca "Gastos por categoria" aberta no modal (id da categoria, "sem" ou "outras")
+  const [fatiaAberta, setFatiaAberta] = useState<string | null>(null);
+  const fecharFatia = useCallback(() => setFatiaAberta(null), []);
   const moeda = prefs.moeda;
   const fmt = (c: number) => formatarMoeda(c, moeda);
   const hoje = hojeLocal();
@@ -150,17 +155,29 @@ export function Dashboard() {
     { id: "disp", rotulo: t.painel.disponivel, valor: Math.max(0, r.disponivel), cor: "var(--primary)" },
   ].filter((f) => f.valor > 0);
 
-  // Gastos por categoria (contas fixas + gastos do mês); até 6 fatias + "Demais"
-  const porCat = porCategoria([...atual.contas.filter((c) => conta(c.pago)), ...atual.gastos.filter((g) => conta(g.pago))]);
+  // Gastos por categoria (contas fixas + gastos do mês): sem as zeradas; fatias < 3% viram "Outras"
+  const saidasContadas = [
+    ...atual.contas.filter((c) => conta(c.pago)).map((c) => ({ ...c, quando: c.vencimento })),
+    ...atual.gastos.filter((g) => conta(g.pago)).map((g) => ({ ...g, quando: g.data })),
+  ];
+  const { fatias: fatiasGrandes, outras } = agruparPequenas(porCategoria(saidasContadas), 3);
   const nomeCat = (id: string | null) => categorias.find((c) => c.id === id);
-  const fatiasCat: FatiaDonut[] = porCat.slice(0, 6).map((f) => ({
-    id: f.categoriaId ?? "sem",
+  const idFatia = (categoriaId: string | null) => categoriaId ?? "sem";
+  const fatiasCat: FatiaDonut[] = fatiasGrandes.map((f) => ({
+    id: idFatia(f.categoriaId),
     rotulo: nomeCat(f.categoriaId)?.nome ?? t.lanc.semCategoria,
     valor: f.centavos,
     cor: nomeCat(f.categoriaId)?.cor ?? "var(--chart-7)",
   }));
-  const resto = porCat.slice(6).reduce((s, f) => s + f.centavos, 0);
-  if (resto > 0) fatiasCat.push({ id: "demais", rotulo: t.painel.demais, valor: resto, cor: "var(--chart-7)" });
+  if (outras.length > 0) {
+    fatiasCat.push({ id: "outras", rotulo: t.painel.outras, valor: outras.reduce((s, f) => s + f.centavos, 0), cor: "var(--chart-7)" });
+  }
+  // Lançamentos da fatia tocada ("Outras" junta as categorias agrupadas)
+  const idsAbertos = new Set(fatiaAberta === "outras" ? outras.map((f) => idFatia(f.categoriaId)) : fatiaAberta ? [fatiaAberta] : []);
+  const itensFatia = saidasContadas
+    .filter((s) => idsAbertos.has(idFatia(s.categoria_id)))
+    .sort((a, b) => paraCentavos(b.valor) - paraCentavos(a.valor));
+  const tituloFatia = fatiasCat.find((f) => f.id === fatiaAberta)?.rotulo ?? "";
 
   const saude = saudeMes(r);
   const lista = contasAVencer(aVencer.data ?? [], hoje);
@@ -262,6 +279,7 @@ export function Dashboard() {
                 fatias={fatiasCat}
                 formatar={fmt}
                 rotulo={t.painel.roscaCategorias(fmt(saidas))}
+                onSelecionar={setFatiaAberta}
                 centro={
                   <>
                     <span className="text-[length:var(--fs-xs)] text-muted">{t.lanc.total}</span>
@@ -269,13 +287,13 @@ export function Dashboard() {
                   </>
                 }
               />
-              <LegendaDonut fatias={fatiasCat} formatar={fmt} />
+              <LegendaDonut fatias={fatiasCat} formatar={fmt} onSelecionar={setFatiaAberta} rotuloAcao={t.painel.verLancamentos} />
             </div>
           )}
         </Card>
 
         {/* Saúde do mês */}
-        <Card className="order-6 col-span-2 flex flex-col gap-2 lg:order-none lg:col-span-4">
+        <Card className="order-7 col-span-2 flex flex-col gap-2 lg:order-none lg:col-span-4">
           <CardTitle>{t.painel.saude}</CardTitle>
           <Gauge
             valor={saude}
@@ -318,13 +336,16 @@ export function Dashboard() {
           )}
         </Card>
 
+        {/* Planejamento do mês */}
+        <CardPlanejamento className="order-5 col-span-2 lg:order-none lg:col-span-4" periodo={periodo} formatar={fmt} />
+
         {/* Últimos lançamentos */}
-        <Card className="order-5 col-span-2 flex flex-col gap-3 lg:order-none lg:col-span-12">
+        <Card className="order-6 col-span-2 flex flex-col gap-3 lg:order-none lg:col-span-8">
           <CardTitle>{t.painel.ultimos}</CardTitle>
           {ultimos.length === 0 ? (
             <CardVazio>{t.painel.semLancamentos}</CardVazio>
           ) : (
-            <ul className="grid gap-x-6 md:grid-cols-2 xl:grid-cols-3">
+            <ul className="grid gap-x-6 md:grid-cols-2">
               {ultimos.map((u) => {
                 const entra = u.tipo === "entrada" || (u.tipo === "investimento" && u.centavos < 0);
                 return (
@@ -342,6 +363,32 @@ export function Dashboard() {
           )}
         </Card>
       </div>
+
+      <Modal aberto={fatiaAberta !== null} titulo={t.painel.lancamentosDe(tituloFatia)} onFechar={fecharFatia}>
+        {itensFatia.length === 0 ? (
+          <p className="text-muted">{t.painel.nenhumLancamento}</p>
+        ) : (
+          <ul className="-mx-1 flex max-h-[60dvh] flex-col overflow-y-auto">
+            {itensFatia.map((i) => (
+              <li key={i.id} className="flex items-center gap-3 border-b border-border px-1 py-2 last:border-b-0">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-text">{i.descricao}</p>
+                  <p className="text-[length:var(--fs-xs)] text-muted">
+                    {[
+                      i.quando ? parseData(i.quando).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : null,
+                      fatiaAberta === "outras" ? nomeCat(i.categoria_id)?.nome ?? t.lanc.semCategoria : null,
+                      i.pago ? null : t.painel.pendente,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+                <span className="num font-medium text-text">{fmt(paraCentavos(i.valor))}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
     </div>
   );
 }

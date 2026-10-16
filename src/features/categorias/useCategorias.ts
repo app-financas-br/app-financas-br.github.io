@@ -12,6 +12,8 @@ export type Categoria = {
   padrao: boolean;
   oculta: boolean;
   ordem: number;
+  /** Grupo do planejamento (null = sem grupo). */
+  grupo_id: string | null;
 };
 
 /** "Outros" padrão de gasto: destino da auto-categorização quando nada casa (não pode ser ocultada nem renomeada). */
@@ -25,7 +27,7 @@ export function useCategorias() {
     queryFn: async (): Promise<Categoria[]> => {
       const { data, error } = await supabase
         .from("categorias")
-        .select("id, tipo, nome, cor, icone, palavras, padrao, oculta, ordem")
+        .select("id, tipo, nome, cor, icone, palavras, padrao, oculta, ordem, grupo_id")
         .order("tipo")
         .order("ordem");
       if (error) throw error;
@@ -51,7 +53,7 @@ export function useAtualizarCategoria() {
   const qc = useQueryClient();
   return useMutation({
     mutationKey: ["salvar", "categorias"],
-    mutationFn: async ({ id, campos }: { id: string; campos: Partial<Pick<Categoria, "nome" | "cor" | "oculta" | "ordem">> }) => {
+    mutationFn: async ({ id, campos }: { id: string; campos: Partial<Pick<Categoria, "nome" | "cor" | "oculta" | "ordem" | "grupo_id">> }) => {
       const { error } = await supabase.from("categorias").update(campos).eq("id", id);
       if (error) throw error;
     },
@@ -75,7 +77,7 @@ export function useCriarCategoria() {
       const { data, error } = await supabase
         .from("categorias")
         .insert(nova)
-        .select("id, tipo, nome, cor, icone, palavras, padrao, oculta, ordem")
+        .select("id, tipo, nome, cor, icone, palavras, padrao, oculta, ordem, grupo_id")
         .single();
       if (error) throw error;
       return data;

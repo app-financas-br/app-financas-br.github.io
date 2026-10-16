@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acumuladoDiario, ateHoje, contasAVencer, diaNoPeriodo, limiteJanela, porCategoria, ultimosLancamentos } from "./dashboard";
+import { acumuladoDiario, agruparPequenas, ateHoje, contasAVencer, diaNoPeriodo, limiteJanela, porCategoria, ultimosLancamentos } from "./dashboard";
 
 const out = { ano: 2026, mes: 10 };
 
@@ -21,6 +21,19 @@ describe("série diária", () => {
     const s = acumuladoDiario([], out);
     expect(ateHoje(s, out, "2026-10-16")).toHaveLength(16);
     expect(ateHoje(s, out, "2026-11-02")).toHaveLength(31);
+  });
+});
+
+describe("agruparPequenas", () => {
+  const f = (categoriaId: string, centavos: number) => ({ categoriaId, centavos });
+  it("junta fatias abaixo de 3% em 'Outras'", () => {
+    const r = agruparPequenas([f("a", 9000), f("b", 600), f("c", 250), f("d", 150)]);
+    expect(r.fatias.map((x) => x.categoriaId)).toEqual(["a", "b"]);
+    expect(r.outras.map((x) => x.categoriaId)).toEqual(["c", "d"]);
+  });
+  it("exatamente 3% não é pequena; uma só pequena fica com o nome", () => {
+    expect(agruparPequenas([f("a", 9700), f("b", 300)]).outras).toEqual([]);
+    expect(agruparPequenas([f("a", 9800), f("b", 200)]).fatias).toHaveLength(2);
   });
 });
 
