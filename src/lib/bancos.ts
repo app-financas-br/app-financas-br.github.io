@@ -79,7 +79,70 @@ function nubankCartao(linhas: Celula[][]): ExtratoBanco | null {
   return r;
 }
 
-const LEITORES = [nubankConta, nubankCartao];
+/** Linha do cabeçalho (até a 15ª) cuja 1ª célula normalizada é `primeira` e que tem a coluna `obrigatoria`. */
+function acharCabecalho(linhas: Celula[][], primeira: string, obrigatoria: string): { i: number; cab: string[] } | null {
+  for (let i = 0; i < Math.min(linhas.length, 15); i++) {
+    const cab = (linhas[i] ?? []).map((c) => normalizar(texto(c)));
+    if (cab[0] === primeira && cab.includes(obrigatoria)) return { i, cab };
+  }
+  return null;
+}
+
+/**
+ * Inter conta: título (Conta/Período/Saldo) e depois "Data Lançamento;[Histórico;]Descrição;Valor;Saldo".
+ * Valor com sinal e vírgula decimal. A coluna Saldo é ignorada. Sem id → chave por hash.
+ * (Formato conhecido dos exports do Inter; ainda não conferido com um arquivo real.)
+ */
+function interConta(linhas: Celula[][]): ExtratoBanco | null {
+  const h = acharCabecalho(linhas, "data lancamento", "valor");
+  if (!h) return null;
+  const iHist = h.cab.indexOf("historico");
+  const iDesc = h.cab.indexOf("descricao");
+  const iValor = h.cab.indexOf("valor");
+  const r: ExtratoBanco = { banco: "Inter", tipoConta: "banco", transacoes: [], ignoradas: [] };
+  linhas.slice(h.i + 1).forEach((l, k) => {
+    if (l.every((c) => texto(c) === "")) return;
+    const data = dataDaCelula(l[0] ?? null);
+    const centavos = valorDaCelula(l[iValor] ?? null);
+    if (!data || !centavos) return void r.ignoradas.push(h.i + k + 2);
+    const partes = [iHist >= 0 ? texto(l[iHist]) : "", iDesc >= 0 ? texto(l[iDesc]) : ""].filter(Boolean);
+    const descricao = partes.join(" - ").replace(/\s+/g, " ").slice(0, 200) || "Sem descrição";
+    r.transacoes.push({ data, centavos, descricao, fitid: null, tipo: null, categoria: null });
+  });
+  return r;
+}
+
+/**
+ * Inter cartão: "Data;Lançamento;Categoria;Tipo;Valor" com valor "R$ 99,99": compra POSITIVA,
+ * pagamento/estorno negativo → inverte o sinal. "Pagamento" sugere transferência.
+ * (Formato conhecido dos exports do Inter; ainda não conferido com um arquivo real.)
+ */
+function interCartao(linhas: Celula[][]): ExtratoBanco | null {
+  const h = acharCabecalho(linhas, "data", "lancamento");
+  if (!h || !h.cab.includes("valor") || h.cab.includes("saldo")) return null;
+  const iLanc = h.cab.indexOf("lancamento");
+  const iCat = h.cab.indexOf("categoria");
+  const iValor = h.cab.indexOf("valor");
+  const r: ExtratoBanco = { banco: "Inter", tipoConta: "cartao", transacoes: [], ignoradas: [] };
+  linhas.slice(h.i + 1).forEach((l, k) => {
+    if (l.every((c) => texto(c) === "")) return;
+    const data = dataDaCelula(l[0] ?? null);
+    const valor = valorDaCelula(l[iValor] ?? null);
+    if (!data || !valor) return void r.ignoradas.push(h.i + k + 2);
+    const descricao = texto(l[iLanc]).replace(/\s+/g, " ").slice(0, 200) || "Sem descrição";
+    r.transacoes.push({
+      data,
+      centavos: -valor,
+      descricao,
+      fitid: null,
+      tipo: valor < 0 && /\bpagamento\b/.test(normalizar(descricao)) ? "transferencia" : null,
+      categoria: iCat >= 0 ? texto(l[iCat]) || null : null,
+    });
+  });
+  return r;
+}
+
+const LEITORES = [nubankConta, nubankCartao, interConta, interCartao];
 
 /** Tenta cada banco conhecido; null = formato desconhecido (usa o mapeamento de colunas). */
 export function lerCsvDeBanco(linhas: Celula[][]): ExtratoBanco | null {

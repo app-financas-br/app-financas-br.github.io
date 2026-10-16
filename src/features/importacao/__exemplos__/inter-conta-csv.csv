@@ -1,0 +1,9 @@
+﻿Extrato Conta Corrente 
+Conta ;0000000-0
+Período ;01/10/2026 a 15/10/2026
+Saldo ;403,60
+
+Data Lançamento;Histórico;Descrição;Valor;Saldo
+11/10/2026;Pix recebido;"Cp :00000000-FULANO DE TAL";500,00;500,00
+13/10/2026;Pagamento efetuado;Internet Fibra Exemplo;-89,90;410,10
+14/10/2026;Compra no débito;Café Expresso Ação;-6,50;403,60

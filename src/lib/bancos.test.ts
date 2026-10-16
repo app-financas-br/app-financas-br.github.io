@@ -62,3 +62,34 @@ describe("formato desconhecido", () => {
     expect(lerCsvDeBanco([])).toBeNull();
   });
 });
+
+describe("Inter conta (CSV, anonimizado)", () => {
+  const r = lerCsvDeBanco(csv("inter-conta-csv.csv"))!;
+  it("acha o cabeçalho depois do título, junta Histórico + Descrição e ignora a coluna Saldo", () => {
+    expect(r).toMatchObject({ banco: "Inter", tipoConta: "banco", ignoradas: [] });
+    expect(r.transacoes.map((t) => [t.data, t.centavos, t.descricao])).toEqual([
+      ["2026-10-11", 50000, "Pix recebido - Cp :00000000-FULANO DE TAL"],
+      ["2026-10-13", -8990, "Pagamento efetuado - Internet Fibra Exemplo"],
+      ["2026-10-14", -650, "Compra no débito - Café Expresso Ação"],
+    ]);
+  });
+  it("versão sem Histórico", () => {
+    const x = lerCsvDeBanco([["Data Lançamento", "Descrição", "Valor", "Saldo"], ["11/10/2026", "Pix", "1,00", "1,00"]])!;
+    expect(x.transacoes[0]).toMatchObject({ centavos: 100, descricao: "Pix" });
+  });
+});
+
+describe("Inter cartão (CSV, anonimizado)", () => {
+  const r = lerCsvDeBanco(csv("inter-cartao-csv.csv"))!;
+  it("compra positiva vira saída; pagamento vira crédito e sugere transferência", () => {
+    expect(r).toMatchObject({ banco: "Inter", tipoConta: "cartao", ignoradas: [] });
+    expect(r.transacoes.map((t) => [t.data, t.centavos, t.descricao, t.tipo, t.categoria])).toEqual([
+      ["2026-09-28", -24590, "MERCADO EXEMPLO", null, "SUPERMERCADO"],
+      ["2026-09-30", -9999, "LOJA EXEMPLO", null, "VESTUARIO"],
+      ["2026-10-05", 152035, "PAGAMENTO ON LINE", "transferencia", null],
+    ]);
+  });
+  it("planilha genérica com Data/Lançamento/Valor/Saldo não é confundida com cartão", () => {
+    expect(lerCsvDeBanco([["Data", "Lançamento", "Valor", "Saldo"], ["01/10/2026", "x", "1", "1"]])).toBeNull();
+  });
+});
