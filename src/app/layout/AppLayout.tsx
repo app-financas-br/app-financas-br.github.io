@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Outlet } from "react-router";
 import { Mic } from "lucide-react";
 import { Sidebar } from "./Sidebar";
@@ -6,6 +7,7 @@ import { BottomNav } from "./BottomNav";
 import { AssistenteVozProvider, useAssistenteVoz } from "../../features/voz/AssistenteVoz";
 import { t } from "../../i18n/pt-BR";
 import { useOffline } from "../../lib/offline";
+import { Skeleton } from "../../components/ui/Skeleton";
 
 /** Botão flutuante de voz no celular (no desktop, o card da barra lateral faz o mesmo). */
 function BotaoVozFlutuante() {
@@ -33,6 +35,16 @@ function AvisoOffline() {
   );
 }
 
+function CarregandoTela() {
+  return (
+    <div role="status" aria-label={t.carregando} className="flex flex-col gap-[var(--gap-grid)]">
+      <Skeleton className="h-10 w-48" />
+      <Skeleton className="h-40 w-full" />
+      <Skeleton className="h-40 w-full" />
+    </div>
+  );
+}
+
 export function AppLayout() {
   return (
     <AssistenteVozProvider>
@@ -43,7 +55,10 @@ export function AppLayout() {
           <AvisoOffline />
           {/* pb extra no celular para o conteúdo não ficar atrás da barra inferior */}
           <main className="flex-1 px-4 pt-4 pb-24 md:px-6 md:pt-6 lg:pb-6">
-            <Outlet />
+            {/* Enquanto a tela é baixada, o menu continua na tela e só o conteúdo espera */}
+            <Suspense fallback={<CarregandoTela />}>
+              <Outlet />
+            </Suspense>
           </main>
         </div>
         <BottomNav />

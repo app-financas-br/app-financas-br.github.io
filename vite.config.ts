@@ -61,6 +61,26 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    // Só o exceljs passa de 500 kB, e ele é baixado apenas ao importar ou exportar planilha
+    chunkSizeWarningLimit: 1000,
+    rolldownOptions: {
+      output: {
+        // Bibliotecas em arquivos com nome fixo: mudam pouco, então o navegador reaproveita entre versões.
+        // Recharts fica separado e só é baixado quando um gráfico aparece (components/graficos/sobDemanda.tsx).
+        codeSplitting: {
+          groups: [
+            { name: "react", test: /node_modules[\\/](react|react-dom|scheduler|react-router)[\\/]/ },
+            { name: "supabase", test: /node_modules[\\/]@supabase[\\/]/ },
+            {
+              name: "recharts",
+              test: /node_modules[\\/](recharts|d3-[a-z-]+|victory-vendor|decimal\.js-light|@reduxjs|redux|redux-thunk|immer|reselect|react-redux|es-toolkit|eventemitter3|tiny-invariant)[\\/]/,
+            },
+          ],
+        },
+      },
+    },
+  },
   server: { port: 5173, strictPort: true },
   test: {
     environment: "node",

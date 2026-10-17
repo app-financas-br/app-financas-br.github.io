@@ -1,20 +1,23 @@
+import { lazy, Suspense } from "react";
 import { HashRouter, Navigate, Outlet, Route, Routes } from "react-router";
 import { useAuth } from "./providers/AuthProvider";
 import { AppLayout } from "./layout/AppLayout";
 import { NAVEGACAO } from "./navegacao";
-import { Login } from "../features/auth/Login";
-import { Cadastro } from "../features/auth/Cadastro";
-import { EsqueciSenha } from "../features/auth/EsqueciSenha";
-import { NovaSenha } from "../features/auth/NovaSenha";
-import { Dashboard } from "../features/dashboard/Dashboard";
-import { Lancamentos } from "../features/lancamentos/Lancamentos";
-import { Planejamento } from "../features/planejamento/Planejamento";
-import { Importacao } from "../features/importacao/Importacao";
-import { Investimentos } from "../features/investimentos/Investimentos";
-import { Metas } from "../features/metas/Metas";
-import { Configuracoes } from "../features/configuracoes/Configuracoes";
 import { EmBreve } from "../components/ui/EmBreve";
 import { t } from "../i18n/pt-BR";
+
+// Cada tela é baixada só quando é aberta (o PWA guarda todas para usar offline)
+const Login = lazy(() => import("../features/auth/Login").then((m) => ({ default: m.Login })));
+const Cadastro = lazy(() => import("../features/auth/Cadastro").then((m) => ({ default: m.Cadastro })));
+const EsqueciSenha = lazy(() => import("../features/auth/EsqueciSenha").then((m) => ({ default: m.EsqueciSenha })));
+const NovaSenha = lazy(() => import("../features/auth/NovaSenha").then((m) => ({ default: m.NovaSenha })));
+const Dashboard = lazy(() => import("../features/dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
+const Lancamentos = lazy(() => import("../features/lancamentos/Lancamentos").then((m) => ({ default: m.Lancamentos })));
+const Planejamento = lazy(() => import("../features/planejamento/Planejamento").then((m) => ({ default: m.Planejamento })));
+const Importacao = lazy(() => import("../features/importacao/Importacao").then((m) => ({ default: m.Importacao })));
+const Investimentos = lazy(() => import("../features/investimentos/Investimentos").then((m) => ({ default: m.Investimentos })));
+const Metas = lazy(() => import("../features/metas/Metas").then((m) => ({ default: m.Metas })));
+const Configuracoes = lazy(() => import("../features/configuracoes/Configuracoes").then((m) => ({ default: m.Configuracoes })));
 
 function TelaCarregando() {
   return (
@@ -41,9 +44,15 @@ function Rotas() {
 
   if (carregando) return <TelaCarregando />;
   // Link de recuperação aberto: a pessoa tem sessão temporária e precisa definir a nova senha.
-  if (recuperandoSenha) return <NovaSenha />;
+  if (recuperandoSenha)
+    return (
+      <Suspense fallback={<TelaCarregando />}>
+        <NovaSenha />
+      </Suspense>
+    );
 
   return (
+    <Suspense fallback={<TelaCarregando />}>
     <Routes>
       <Route element={<SoVisitante />}>
         <Route path="/login" element={<Login />} />
@@ -68,6 +77,7 @@ function Rotas() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 }
 
