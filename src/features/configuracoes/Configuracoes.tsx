@@ -1,5 +1,6 @@
 import { Categorias } from "../categorias/Categorias";
 import { ContasBancarias } from "../contas-bancarias/ContasBancarias";
+import { BackupDados } from "../backup/BackupDados";
 import { t } from "../../i18n/pt-BR";
 
 export function Configuracoes() {
@@ -22,6 +23,15 @@ export function Configuracoes() {
           <p className="text-muted">{t.categorias.subtitulo}</p>
         </div>
         <Categorias />
+      </section>
+      <section className="flex flex-col gap-3" aria-labelledby="secao-backup">
+        <div>
+          <h2 id="secao-backup" className="text-[length:var(--fs-lg)] font-semibold text-text">
+            {t.backup.titulo}
+          </h2>
+          <p className="text-muted">{t.backup.subtitulo}</p>
+        </div>
+        <BackupDados />
       </section>
     </div>
   );

@@ -58,6 +58,16 @@ supabase db push     # aplica migrations no projeto linkado
 supabase functions deploy voz --no-verify-jwt   # a função valida o login no código
 ```
 
+**Antes de qualquer comando do Supabase (CLI):** definir `SUPABASE_ACCESS_TOKEN` lendo o arquivo `$HOME\.app-financas-token`, sem mostrar o valor. Assim a CLI usa a conta do App Finanças e não o login salvo de outra conta. Conferir com `npx supabase projects list` que `gapfljbyftbusatwrsdz` aparece.
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = (Get-Content "$HOME\.app-financas-token" -Raw).Trim()   # PowerShell
+```
+
+```bash
+export SUPABASE_ACCESS_TOKEN="$(tr -d '\r\n' < "$HOME/.app-financas-token")"        # Git Bash
+```
+
 ## Como trabalhar
 
 - Uma fase por vez (`docs/05-roadmap.md`). Ao fim de cada fase: `npm run build` e `npm run test` passando, e um resumo do que foi feito.

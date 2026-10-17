@@ -18,3 +18,7 @@ importar/
 *.xlsx
 !src/features/importacao/__exemplos__/*.csv
 !src/features/importacao/__exemplos__/*.xlsx
+
+# Backups de dados pessoais (Configurações → Baixar backup): nunca vão para o Git
+financas-backup-*.json
+backups-financas/
