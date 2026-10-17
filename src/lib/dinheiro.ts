@@ -1,7 +1,13 @@
 // Dinheiro: cálculos sempre em centavos inteiros.
 // O banco devolve numeric como número ou string — sempre passar por Number().
 
+import { valoresOcultos } from "./privacidade";
+
 export type Moeda = "BRL" | "USD" | "EUR";
+
+const SIMBOLO: Record<Moeda, string> = { BRL: "R$", USD: "US$", EUR: "€" };
+/** O que aparece no lugar do número quando o "olhinho" está fechado. */
+export const VALOR_OCULTO = "••••";
 
 /** Valor em reais (número ou string do banco) → centavos inteiros. */
 export function paraCentavos(valor: number | string | null | undefined): number {
@@ -20,8 +26,12 @@ export function deCentavos(centavos: number): number {
 
 const formatadores = new Map<Moeda, Intl.NumberFormat>();
 
-/** Formata centavos na moeda escolhida, no padrão brasileiro (R$ 1.234,56). */
+/**
+ * Formata centavos na moeda escolhida, no padrão brasileiro (R$ 1.234,56).
+ * Formatador central de dinheiro da tela: com o "olhinho" fechado devolve "R$ ••••".
+ */
 export function formatarMoeda(centavos: number, moeda: Moeda = "BRL"): string {
+  if (valoresOcultos()) return `${SIMBOLO[moeda]} ${VALOR_OCULTO}`;
   let f = formatadores.get(moeda);
   if (!f) {
     f = new Intl.NumberFormat("pt-BR", { style: "currency", currency: moeda });
@@ -32,8 +42,16 @@ export function formatarMoeda(centavos: number, moeda: Moeda = "BRL"): string {
 
 /** Movimento com sinal: "+R$ 10,00" / "−R$ 10,00"; zero fica sem sinal ("R$ 0,00"). */
 export function formatarMovimento(centavos: number, moeda: Moeda = "BRL"): string {
-  if (centavos === 0) return formatarMoeda(0, moeda);
+  // Oculto: sem o sinal também (a cor da linha já diz se entrou ou saiu)
+  if (centavos === 0 || valoresOcultos()) return formatarMoeda(0, moeda);
   return `${centavos > 0 ? "+" : "−"}${formatarMoeda(Math.abs(centavos), moeda)}`;
+}
+
+const compacto = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
+
+/** Eixo de gráfico: "1,2 mil" (sem símbolo). Oculto: "••••". */
+export function formatarCompacto(centavos: number): string {
+  return valoresOcultos() ? VALOR_OCULTO : compacto.format(centavos / 100);
 }
 
 /** Formata uma variação percentual com sinal: +6,21% / -1,08%. */

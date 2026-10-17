@@ -23,6 +23,8 @@ export const t = {
   },
 
   topbar: {
+    ocultarValores: "Ocultar valores",
+    mostrarValores: "Mostrar valores",
     mesAnterior: "Mês anterior",
     proximoMes: "Próximo mês",
     escolherMes: "Escolher mês e ano",

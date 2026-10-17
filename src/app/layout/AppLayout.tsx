@@ -7,6 +7,7 @@ import { BottomNav } from "./BottomNav";
 import { AssistenteVozProvider, useAssistenteVoz } from "../../features/voz/AssistenteVoz";
 import { t } from "../../i18n/pt-BR";
 import { useOffline } from "../../lib/offline";
+import { useValoresOcultos } from "../../lib/privacidade";
 import { Skeleton } from "../../components/ui/Skeleton";
 
 /** Botão flutuante de voz no celular (no desktop, o card da barra lateral faz o mesmo). */
@@ -46,6 +47,8 @@ function CarregandoTela() {
 }
 
 export function AppLayout() {
+  // Ao abrir/fechar o "olhinho", a tela é redesenhada para todo valor passar de novo pelo formatador
+  const [ocultos] = useValoresOcultos();
   return (
     <AssistenteVozProvider>
       <div className="flex min-h-dvh bg-app">
@@ -56,7 +59,7 @@ export function AppLayout() {
           {/* pb extra no celular para o conteúdo não ficar atrás da barra inferior */}
           <main className="flex-1 px-4 pt-4 pb-24 md:px-6 md:pt-6 lg:pb-6">
             {/* Enquanto a tela é baixada, o menu continua na tela e só o conteúdo espera */}
-            <Suspense fallback={<CarregandoTela />}>
+            <Suspense key={ocultos ? "ocultos" : "visiveis"} fallback={<CarregandoTela />}>
               <Outlet />
             </Suspense>
           </main>

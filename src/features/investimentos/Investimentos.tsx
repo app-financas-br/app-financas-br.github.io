@@ -19,13 +19,12 @@ import type { Investimento } from "../lancamentos/tipos";
 import { normalizar } from "../../lib/categorizar";
 import { patrimonio } from "../../lib/calculos";
 import { dataPadrao } from "../../lib/datas";
-import { deCentavos, formatarMoeda, paraCentavos, parseValor } from "../../lib/dinheiro";
+import { deCentavos, formatarMoeda, paraCentavos, parseValor, formatarCompacto } from "../../lib/dinheiro";
 import { patrimonioPorMes, resumoInvestimentos, saldoInicialParaPatrimonio, saldoPorCategoria } from "../../lib/investimentos";
 import { useTodosInvestimentos } from "./api";
 import { t } from "../../i18n/pt-BR";
 
 const GRADE = "minmax(0,1fr) 9.5rem 9.5rem 6.5rem 8.5rem 2.5rem";
-const compacto = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
 const campo = "h-11 w-full rounded-md border border-border bg-input px-3 text-text outline-none focus:border-border-glow [&>option]:bg-elevated";
 
 /** Resgate: escolhe a categoria de origem, valor, data e o destino (uma conta, reserva ou gasto planejado). */
@@ -198,7 +197,7 @@ export function Investimentos() {
             <GraficoPatrimonio
               dados={pontos}
               formatar={fmt}
-              formatarCurto={(c) => compacto.format(c / 100)}
+              formatarCurto={formatarCompacto}
               rotuloPatrimonio={t.investimentos.patrimonio}
               rotuloLiquido={t.investimentos.liquidoMes}
             />

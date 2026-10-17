@@ -21,7 +21,7 @@ import { LegendaDonut, type FatiaDonut } from "../../components/graficos/Legenda
 import { Gauge } from "../../components/graficos/Gauge";
 import { usePeriodo } from "../../app/providers/PeriodoProvider";
 import { useCategorias } from "../categorias/useCategorias";
-import { formatarMoeda, formatarMovimento, formatarPercentual, paraCentavos, type Moeda } from "../../lib/dinheiro";
+import { formatarMoeda, formatarMovimento, formatarPercentual, paraCentavos, type Moeda, formatarCompacto } from "../../lib/dinheiro";
 import { rotuloSaude, saudeMes, variacaoPercentual } from "../../lib/calculos";
 import { acumuladoDiario, agruparPequenas, ateHoje, contasAVencer, diaNoPeriodo, porCategoria, ultimosLancamentos } from "../../lib/dashboard";
 import { hoje as hojeLocal, parseData } from "../../lib/datas";
@@ -33,7 +33,6 @@ import { Mic } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import { t } from "../../i18n/pt-BR";
 
-const compacto = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
 
 // ---------------------------------------------------------------------------
 
@@ -263,7 +262,7 @@ export function Dashboard() {
                 { chave: "saidas", rotulo: t.painel.saidas, cor: "var(--danger)", tracejada: true },
               ]}
               formatar={fmt}
-              formatarCurto={(c) => compacto.format(c / 100)}
+              formatarCurto={formatarCompacto}
               rotuloX={(d) => `${d} ${mesCurto}`}
             />
           )}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { Bell, LogOut, Settings, User } from "lucide-react";
+import { Bell, Eye, EyeOff, LogOut, Settings, User } from "lucide-react";
+import { useValoresOcultos } from "../../lib/privacidade";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../providers/AuthProvider";
 import { tituloDaRota } from "../navegacao";
@@ -56,6 +57,17 @@ function MenuConta() {
   );
 }
 
+/** "Olhinho": oculta ou mostra os valores em dinheiro em todas as telas (guardado neste aparelho). */
+function BotaoOcultarValores() {
+  const [ocultos, definir] = useValoresOcultos();
+  const rotulo = ocultos ? t.topbar.mostrarValores : t.topbar.ocultarValores;
+  return (
+    <button type="button" onClick={() => definir(!ocultos)} aria-label={rotulo} title={rotulo} aria-pressed={ocultos} className={botaoRedondo}>
+      {ocultos ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
+    </button>
+  );
+}
+
 export function Topbar() {
   const { pathname } = useLocation();
 
@@ -65,6 +77,7 @@ export function Topbar() {
       <div className="flex items-center gap-2 max-sm:order-last max-sm:w-full max-sm:justify-center">
         <MonthPicker />
       </div>
+      <BotaoOcultarValores />
       {/* Contas a vencer: o contador chega na Fase 1 */}
       <button type="button" aria-label={t.topbar.avisos} className={botaoRedondo}>
         <Bell size={18} />
