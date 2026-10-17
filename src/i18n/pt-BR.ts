@@ -226,6 +226,25 @@ export const t = {
     erroConferir: "Não foi possível conferir se a conta já existe nos próximos meses.",
   },
 
+  exportacao: {
+    abrir: "Exportar",
+    titulo: "Exportar para Excel",
+    explicacao: "Gera um arquivo .xlsx com a aba Resumo e uma aba por tabela (uma linha por lançamento, com Ano e Mês).",
+    doMes: (mes: string) => `Só ${mes}`,
+    doAno: (ano: number) => `Ano inteiro de ${ano}`,
+    gerar: "Baixar Excel",
+    gerando: "Gerando…",
+    pronto: (arquivo: string) => `Arquivo ${arquivo} baixado.`,
+    erro: "Não foi possível gerar o Excel. Verifique a internet e tente de novo.",
+    abas: { resumo: "Resumo", entradas: "Entradas", contasFixas: "Contas fixas", gastos: "Gastos variáveis", investimentos: "Investimentos" },
+    colunas: {
+      ano: "Ano", mes: "Mês", data: "Data", vencimento: "Vencimento", descricao: "Descrição", categoria: "Categoria", valor: "Valor",
+      status: "Status", conta: "Conta", pagamento: "Pagamento", cartaoConta: "Cartão/conta", parcela: "Parcela", observacao: "Observação",
+      tipo: "Tipo", entradasRecebidas: "Entradas recebidas", aReceber: "A receber", contasFixas: "Contas fixas", gastos: "Gastos variáveis",
+      investido: "Investido", disponivel: "Disponível",
+    },
+  },
+
   offline: {
     aviso: "Sem internet: mostrando os dados carregados por último. Para salvar, conecte-se de novo.",
   },

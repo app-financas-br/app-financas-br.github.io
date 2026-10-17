@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { FileUp } from "lucide-react";
+import { FileDown, FileUp } from "lucide-react";
+import { ModalExportar } from "../exportacao/ModalExportar";
 import { Entradas } from "./Entradas";
 import { ContasFixas } from "./ContasFixas";
 import { Gastos } from "./Gastos";
@@ -17,6 +19,9 @@ export function Lancamentos() {
   const [params, setParams] = useSearchParams();
   const ativa = ABAS.find((a) => a.id === params.get("aba")) ?? ABAS[2];
   const Componente = ativa.Componente;
+  const [exportando, setExportando] = useState(false);
+  const botao =
+    "inline-flex h-9 items-center justify-center gap-2 rounded-md border border-primary px-3 text-[length:var(--fs-sm)] text-primary-text transition-colors duration-200 ease-app hover:bg-primary-soft";
 
   return (
     <div className="flex flex-col gap-[var(--gap-grid)]">
@@ -47,12 +52,15 @@ export function Lancamentos() {
           );
         })}
       </div>
-      <Link
-        to="/importar"
-        className="inline-flex h-9 items-center justify-center gap-2 self-end rounded-md border border-primary px-3 text-[length:var(--fs-sm)] text-primary-text transition-colors duration-200 ease-app hover:bg-primary-soft sm:self-auto"
-      >
-        <FileUp size={16} aria-hidden /> {t.importacao.abrir}
-      </Link>
+      <div className="flex gap-2 self-end sm:self-auto">
+        <button type="button" onClick={() => setExportando(true)} className={botao}>
+          <FileDown size={16} aria-hidden /> {t.exportacao.abrir}
+        </button>
+        <Link to="/importar" className={botao}>
+          <FileUp size={16} aria-hidden /> {t.importacao.abrir}
+        </Link>
+      </div>
+      <ModalExportar aberto={exportando} onFechar={() => setExportando(false)} />
       </div>
       <div role="tabpanel">
         <Componente />

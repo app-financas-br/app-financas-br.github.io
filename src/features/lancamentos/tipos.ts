@@ -19,7 +19,7 @@ type Parcela = {
   parcela_total: number | null;
 };
 
-export type Entrada = Base & { recebido: boolean; data: string | null };
+export type Entrada = Base & { recebido: boolean; data: string | null; conta_bancaria_id?: string | null };
 
 export type ContaFixa = Base &
   Parcela & { pago: boolean; vencimento: string | null; categoria_id: string | null };
