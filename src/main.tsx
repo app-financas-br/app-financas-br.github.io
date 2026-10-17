@@ -9,7 +9,10 @@ import "./index.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false },
+    // offlineFirst: sem internet, a consulta ainda vai ao service worker, que devolve a última leitura guardada
+    queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false, networkMode: "offlineFirst" },
+    // Gravações sem internet falham na hora (desfaz a edição otimista e avisa) em vez de ficarem presas
+    mutations: { networkMode: "always" },
   },
 });
 

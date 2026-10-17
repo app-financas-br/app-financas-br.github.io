@@ -5,6 +5,7 @@ import { Topbar } from "./Topbar";
 import { BottomNav } from "./BottomNav";
 import { AssistenteVozProvider, useAssistenteVoz } from "../../features/voz/AssistenteVoz";
 import { t } from "../../i18n/pt-BR";
+import { useOffline } from "../../lib/offline";
 
 /** Botão flutuante de voz no celular (no desktop, o card da barra lateral faz o mesmo). */
 function BotaoVozFlutuante() {
@@ -22,6 +23,16 @@ function BotaoVozFlutuante() {
   );
 }
 
+/** Sem internet: o app mostra o que já foi carregado e avisa que não dá para salvar. */
+function AvisoOffline() {
+  if (!useOffline()) return null;
+  return (
+    <div role="status" className="mx-4 mt-3 rounded-md border border-warning/40 bg-elevated px-3 py-2 text-[length:var(--fs-sm)] text-warning md:mx-6">
+      {t.offline.aviso}
+    </div>
+  );
+}
+
 export function AppLayout() {
   return (
     <AssistenteVozProvider>
@@ -29,6 +40,7 @@ export function AppLayout() {
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar />
+          <AvisoOffline />
           {/* pb extra no celular para o conteúdo não ficar atrás da barra inferior */}
           <main className="flex-1 px-4 pt-4 pb-24 md:px-6 md:pt-6 lg:pb-6">
             <Outlet />

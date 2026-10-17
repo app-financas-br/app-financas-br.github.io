@@ -226,6 +226,10 @@ export const t = {
     erroConferir: "Não foi possível conferir se a conta já existe nos próximos meses.",
   },
 
+  offline: {
+    aviso: "Sem internet: mostrando os dados carregados por último. Para salvar, conecte-se de novo.",
+  },
+
   fatura: {
     titulo: "Quando paga",
     este: "Paga este mês",

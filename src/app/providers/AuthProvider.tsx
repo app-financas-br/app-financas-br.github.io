@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { limparLeituraOffline } from "../../lib/offline";
 import { supabase } from "../../lib/supabase";
 
 type AuthContexto = {
@@ -36,7 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!ativo) return;
       setSession(novaSessao);
       if (evento === "PASSWORD_RECOVERY") setRecuperandoSenha(true);
-      if (evento === "SIGNED_OUT") setRecuperandoSenha(false);
+      if (evento === "SIGNED_OUT") {
+        setRecuperandoSenha(false);
+        limparLeituraOffline();
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session: atual } }) => {
